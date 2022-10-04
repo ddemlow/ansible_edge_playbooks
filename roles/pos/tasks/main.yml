@@ -1,0 +1,64 @@
+---
+# tasks file for pos
+  - name: Clone pos vm for store - if not present - provide cloud-init config
+    scale_computing.hypercore.vm_clone:
+      vm_name: "pos-{{ site_name }}"
+      source_vm_name: ubuntu20_04
+      cloud_init:
+        user_data: |
+          #cloud-config
+          password: "password"
+          chpasswd: { expire: False }
+          ssh_pwauth: True
+          apt: {sources: {docker.list: {source: 'deb [arch=amd64] https://download.docker.com/linux/ubuntu $RELEASE stable', keyid: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88}}}
+          packages: [qemu-guest-agent, docker-ce, docker-ce-cli, docker-compose, unzip]          
+          bootcmd:
+            - [ sh, -c, 'sudo echo GRUB_CMDLINE_LINUX="nomodeset" >> /etc/default/grub' ]
+            - [ sh, -c, 'sudo echo GRUB_GFXPAYLOAD_LINUX="1024x768" >> /etc/default/grub' ]
+            - [ sh, -c, 'sudo echo GRUB_DISABLE_LINUX_UUID=true >> /etc/default/grub' ]
+            - [ sh, -c, 'sudo update-grub' ]
+            - [ sh, -c, 'systemctl restart qemu-guest-agent || true ' ]
+            - [ sh, -c,  'sleep 5 && systemctl restart qemu-guest-agent || true ' ]
+          runcmd:
+            - [ systemctl, restart, --no-block, qemu-guest-agent ]
+        meta_data: |
+          dsmode: local
+          network-interfaces: |
+            auto lo
+            iface lo inet loopback
+            iface ens3 inet static
+              address {{ pos_address }}
+              netmask 255.255.255.0
+              gateway 192.168.1.1
+              dns-nameservers 8.8.8.8
+          local-hostname: "pos-{{ site_name }}"
+    tags:    # tags - allow selective task execution with -t at command line
+      - pos
+
+  - name: Pos VM disk desired configuration
+    scale_computing.hypercore.vm_disk:
+      vm_name: "pos-{{ site_name }}"
+      items:
+        - disk_slot: 0
+          type: virtio_disk
+          size: "{{ '300 GB' | human_to_bytes }}"
+          tiering_priority_factor: 1
+      state: present
+    tags:    # tags - allow selective task execution with -t at command line
+      - pos
+
+  - name: Pos VM desired configuration and state
+    scale_computing.hypercore.vm_params:
+      vm_name: "pos-{{ site_name }}"
+      memory: "{{ '1 GB' | human_to_bytes }}"
+      description: "pos vm for {{ site_name }} at ip {{ pos_address }}"
+      snapshot_schedule: snap-daily-midnight
+      tags:
+        - demo
+        - ansible
+        - pos
+        - "{{ site_name }}"
+      vcpu: 4
+      power_state: start
+    tags:    # tags - allow selective task execution with -t at command line
+      - pos

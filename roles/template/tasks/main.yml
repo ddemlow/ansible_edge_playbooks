@@ -1,0 +1,28 @@
+---
+# tasks file for template
+  - name: Ubuntu20_04 template - Ubuntu 20.04 - import if not present
+    scale_computing.hypercore.vm_import:
+      vm_name: ubuntu20_04
+      smb:
+        server: "{{ smbserver }}"
+        path: "{{ smbpath }}"
+        username: "{{ smbusername }}"
+        password: "{{ smbpassword }}"
+    ignore_errors: true  #import errors are not uncommon depdending on network connection to smb / https source
+    register: ubuntu20_04
+    tags:    # tags - allow selective task execution with -t at command line
+      - template
+
+  - name: Protect ubuntu20_04 template from powering on - params
+    scale_computing.hypercore.vm_params:
+      vm_name: ubuntu20_04
+      description: Ubuntu 20.04 Cloud-Init Image
+      tags:
+        - demo
+        - ansible
+        - template
+        - cloudinit
+      vcpu: 0
+      power_state: stop
+    tags:    # tags - allow selective task execution with -t at command line
+      - template

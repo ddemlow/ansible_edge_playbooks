@@ -1,0 +1,8 @@
+            hypercore_role: staging
+            hypercore_desired_version: 9.2.5.209757
+            hypercore_update_uuid: 9.2.5.209757 #added only because of odd 9.2.4 uuid
+            smbserver: 10.100.20.175
+            smbpath: /azure-sync/ubuntu20_04-cloud-init
+            smbusername: remotedc;administrator
+            smbpassword: Scale2010
+            syslog_ip: '10.6.42.4'

@@ -1,0 +1,16 @@
+---
+- name: Retail-edge workload deployment playbook
+  hosts: edge # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
+  connection: ansible.builtin.local
+  gather_facts: false
+  strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
+  environment:
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user }}"
+    SC_PASSWORD: "{{ scale_pass }}"
+
+- ansible.builtin.import_playbook: template.yml
+- ansible.builtin.import_playbook: pharmacy.yml
+- ansible.builtin.import_playbook: pos.yml
+- ansible.builtin.import_playbook: security.yml
+- ansible.buildint.import_playbook: cleanup_old_vms.yml

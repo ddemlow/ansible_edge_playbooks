@@ -1,0 +1,13 @@
+            gateway: 192.168.1.1
+            subnet: 255.255.255.0
+            dns-nameserver: 192.168.1.248
+            ansible_user: root
+            vm_image_url: 'smb://pm-edge;administrator:Scale2020!@192.168.1.248/azure-sync/ubuntu18_04-cloud-init'
+            syslog_ip: '192.168.1.4'
+            scale_user: admin
+            scale_pass: admin
+            hypercore_role: production
+            smbserver: 192.168.1.248
+            smbpath: /azure-sync/ubuntu20_04-cloud-init
+            smbusername: pm-edge;administrator
+            smbpassword: Scale2020!

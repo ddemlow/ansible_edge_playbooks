@@ -1,0 +1,13 @@
+---
+# tasks file for schedules
+
+  # - name: Setup snapshot schedule  #currently not idempotent - issue filed
+  #   scale_computing.hypercore.snapshot_schedule:
+  #     name: snap-daily-midnight
+  #     state: present
+  #     recurrences:
+  #       - name: daily-midnight
+  #         frequency: "FREQ=DAILY;INTERVAL=1"  # RFC-2445
+  #         start: "2010-01-01 00:00:00"
+  #         local_retention: "{{ 7*24*60*60 }}"  # 7 days, unit seconds
+  #         remote_retention: "{{ 1*24*60*60 }}" # optional, None or 0 means same as local_retention.

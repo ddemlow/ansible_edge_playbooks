@@ -1,0 +1,66 @@
+---
+# tasks file for pharmacy
+# begin pharmacy vm configurations
+  - name: Clone vm pharmacy - if not present
+    scale_computing.hypercore.vm_clone:
+      vm_name: "pharmacy-{{site_name}}"
+      tags:
+        - demo
+        - ansible
+        - cloudinit
+      source_vm_name: ubuntu20_04
+      cloud_init:
+        user_data: |
+          #cloud-config
+          password: "password"
+          chpasswd: { expire: False }
+          ssh_pwauth: True
+          apt: {sources: {docker.list: {source: 'deb [arch=amd64] https://download.docker.com/linux/ubuntu $RELEASE stable', keyid: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88}}}
+          packages: [qemu-guest-agent, docker-ce, docker-ce-cli, docker-compose, unzip]
+          bootcmd:
+            - [ sh, -c, 'sudo echo GRUB_CMDLINE_LINUX="nomodeset" >> /etc/default/grub' ]
+            - [ sh, -c, 'sudo echo GRUB_GFXPAYLOAD_LINUX="1024x768" >> /etc/default/grub' ]
+            - [ sh, -c, 'sudo echo GRUB_DISABLE_LINUX_UUID=true >> /etc/default/grub' ]
+            - [ sh, -c, 'sudo update-grub' ]
+          runcmd:
+            - [ systemctl, restart, --no-block, qemu-guest-agent ]
+            - [ curl -s https://api.sc-platform.sc-platform.avassa.net/install | sudo sh -s -- -y -c  ]
+        meta_data: |
+          dsmode: local
+          local-hostname: "pharmacy-{{ site_name }}"
+    register: pharmacy
+    tags:    # tags - allow selective task execution with -t at command line
+      - pharmacy
+
+  #   notify:
+  #     - pharmacy-created
+
+  # - name: Flush handlers  #notifies handlers right away instead of at end of playbook
+  #   meta: flush_handlers
+
+  - name: Pharmacy Vm disk desired configuration
+    scale_computing.hypercore.vm_disk:
+      vm_name: "pharmacy-{{site_name}}"
+      items:
+        - disk_slot: 0
+          type: virtio_disk
+          size: "{{ '50 GB' | human_to_bytes }}"
+          tiering_priority_factor: 12
+      state: present
+    tags:    # tags - allow selective task execution with -t at command line
+      - pharmacy
+
+  - name: Pharmacy Vm desired configuration and state
+    scale_computing.hypercore.vm_params:
+      vm_name: "pharmacy-{{site_name}}"
+      memory: "{{ '1 GB' | human_to_bytes }}"
+      description: "pharmacy server for {{ site_name }}"
+      tags:
+        - demo
+        - ansible
+        - pharmacy
+        - "{{ site_name }}"
+      vcpu: 2
+      power_state: start
+    tags:    # tags - allow selective task execution with -t at command line
+      - pharmacy
