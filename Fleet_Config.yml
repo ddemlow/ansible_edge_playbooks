@@ -13,4 +13,4 @@
 - ansible.builtin.import_playbook: pharmacy.yml
 - ansible.builtin.import_playbook: pos.yml
 - ansible.builtin.import_playbook: security.yml
-- ansible.buildint.import_playbook: cleanup_old_vms.yml
+- ansible.builtin.import_playbook: cleanup_old_vms.yml
