@@ -1,5 +1,5 @@
 ---
-- name: Retail-edge workload deployment playbook
+- name: HyperCore Best Practices healthcheck
   hosts: edge # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
   connection: ansible.builtin.local
   gather_facts: false
@@ -8,10 +8,6 @@
     SC_HOST: "https://{{ inventory_hostname }}"
     SC_USERNAME: "{{ scale_user }}"
     SC_PASSWORD: "{{ scale_pass }}"
+  roles:
+    - check-ide # check for vms with ide disks
 
-- ansible.builtin.import_playbook: template.yml
-- ansible.builtin.import_playbook: pharmacy.yml
-- ansible.builtin.import_playbook: pos.yml
-- ansible.builtin.import_playbook: security.yml
-- ansible.builtin.import_playbook: cleanup_old_vms.yml
-- ansible.builtin.import_playbook: healthcheck.yml
