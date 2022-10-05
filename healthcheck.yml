@@ -3,11 +3,15 @@
   hosts: edge # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
   connection: ansible.builtin.local
   gather_facts: false
-  strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
+  ignore_errors: yes # chesks will log failure if out of compliance
+  #strategy: host_pinned # use default - want these tasks to all report in block together
   environment:
     SC_HOST: "https://{{ inventory_hostname }}"
     SC_USERNAME: "{{ scale_user }}"
     SC_PASSWORD: "{{ scale_pass }}"
+
   roles:
+    - vm_cleanup
     - check-ide # check for vms with ide disks
+    - hypercore_version # checks and corrects hypercore version vs. desiredo
 

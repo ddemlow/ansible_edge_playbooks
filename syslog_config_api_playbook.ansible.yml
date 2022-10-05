@@ -1,0 +1,32 @@
+- name: Configure AlertSyslogTarget across clusters using syslog_ip variable from inventory file
+  hosts: edge
+  connection: local
+  tasks:
+  - name: get current AlertSyslogTarget
+    scale_computing.hypercore.api:
+      action: get
+      cluster_instance:
+        host: "https://{{ inventory_hostname }}"
+        username: "{{scale_user}}"
+        password: "{{scale_pass}}"
+      endpoint: /rest/v1/AlertSyslogTarget
+    register: syslog
+
+  - name: post to create AlertSyslogTarget if desired is not last entry
+    scale_computing.hypercore.api:
+      action: post
+      cluster_instance:
+        host: "https://{{ inventory_hostname }}"
+        username: "{{scale_user}}"
+        password: "{{scale_pass}}"
+      endpoint: /rest/v1/AlertSyslogTarget
+      data:
+        host: "{{ syslog_ip }}"
+    when:  ( syslog.record [syslog.record | length -1].host != syslog_ip   
+           or syslog.record is undefined )
+           and syslog_ip is defined  #skip if no desired syslog_ip is set for this cluster in inventory 
+
+
+
+
+

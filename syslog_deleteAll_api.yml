@@ -1,0 +1,26 @@
+- name: Delete all AlertSyslogTargets across all inventory
+  hosts: all
+  connection: local
+  gather_facts: False 
+  tasks:
+  - name: get current AlertSyslogTarget
+    scale_computing.hypercore.api:
+      action: get
+      cluster_instance:
+        host: "https://{{ inventory_hostname }}"
+        username: "{{scale_user}}"
+        password: "{{scale_pass}}"
+      endpoint: /rest/v1/AlertSyslogTarget
+    register: syslog
+
+  - name: delete all AlertSyslogTargets
+    scale_computing.hypercore.api:
+      action: delete
+      cluster_instance:
+        host: "https://{{ inventory_hostname }}"
+        username: "{{scale_user}}"
+        password: "{{scale_pass}}"
+      endpoint: /rest/v1/AlertSyslogTarget/{{ item.uuid }}
+    loop: '{{ syslog.record | from_yaml_all | list }}'
+
+

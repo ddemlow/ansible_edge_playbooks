@@ -1,0 +1,56 @@
+---
+# tasks file for hypercore_version
+  - name: get hypercore cluster object using REST api
+    scale_computing.hypercore.api:
+      action: get
+      endpoint: /rest/v1/Cluster
+    check_mode: no        
+    register: cluster_info
+    tags:
+    - checkversion
+
+  - name: get hypercore node object using REST api
+    scale_computing.hypercore.api:
+      action: get
+      endpoint: /rest/v1/Node
+    check_mode: no
+    register: node_info
+    tags:
+    - checkversion
+
+  - name: set hypercore clusterName icosVersion and nodeCount as ansible facts 
+    ansible.builtin.set_fact:
+      clusterName: '{{ item.clusterName }}'
+      icosVersion: '{{ item.icosVersion | trim }}'
+      nodeCount: '{{ node_info.record | length }}'
+    loop: '{{ cluster_info.record | from_yaml_all | list }}'
+    tags:
+    - checkversion
+
+  # - name: Print the transformed variables
+  #   ansible.builtin.debug:
+  #     var: clusterName, icosVersion, nodeCount, hypercore_desired_version, cluster_info.record[0].icosVersion | trim
+
+  - name: get hypercore available updates using REST api
+    scale_computing.hypercore.api:
+      action: get
+      endpoint: /rest/v1/Update
+    check_mode: no
+    register: update
+    tags:
+    - checkversion
+
+  - name: report ouf of version compliance
+    ansible.builtin.fail:
+      msg: update required on  {{inventory_hostname}} {{cluster_info.record[0].clusterName }} is {{cluster_info.record[0].icosVersion}} while desired version is {{hypercore_desired_version}} 
+    when: ( cluster_info.record[0].icosVersion  | trim ) != hypercore_desired_version
+    tags:
+    - checkversion
+
+  # - name: apply desired version to cluster
+  #   scale_computing.hypercore.api:
+  #     action: post
+  #     endpoint: /rest/v1/Update/{{hypercore_update_uuid}}/apply
+  #   register: update_desired
+  #   when: ( cluster_info.record[0].icosVersion  | trim ) != hypercore_desired_version
+

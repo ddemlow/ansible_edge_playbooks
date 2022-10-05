@@ -12,6 +12,8 @@ If the VM exists, or after it is clone, next task uses scale_computing.hypercore
 
 Following that task - the scale_computing.hypercore.vm_params: module configures specified virtual machine paramters including power_state: start which will result in the VM being started if it is not.
 
+Healthcheck.yml playbook runs a set of "health check" roles against inventory performing tasks such as cleaning up VM's that should not exist across fleet, looking for VM's using emulated IDE disks vs. performant virtio devices and checking HyperCore version of cluster vs. desired version set in inventory - with the ability to apply version update to cluster.
+
 Below is an example of what a specific site configuration should look like
 <img width="1366" alt="image" src="https://user-images.githubusercontent.com/26821128/193714990-73bdfc08-f374-4092-8369-b91b16e44bfc.png">
 

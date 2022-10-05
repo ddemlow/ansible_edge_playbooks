@@ -1,0 +1,48 @@
+- name: create ansible user with admin role using hypercore.api module
+  hosts: edge #use ansible-playbook -l group to limit application to specific groups
+  connection: local
+  strategy: host_pinned #free  #allows each cluster to start next task before all clusters have finished current task
+  environment:
+    SC_HOST: "https://{{inventory_hostname}}"
+    SC_USERNAME: "admin" #override inventory credentials since ansible user may not yet exist
+    SC_PASSWORD: "admin"   
+
+  tasks:
+  - name: get cluster roles in order to find desired role UUID
+    scale_computing.hypercore.api:
+      action: get
+      endpoint: /rest/v1/Role
+    register: roles
+
+  - name: set uuid for cluster admin role  
+    ansible.builtin.set_fact:
+      admin_role_uuid: "{{ item.uuid }}"
+    when: item.name == "Admin"
+    loop: '{{ roles.record | from_yaml_all | list }}'
+    
+  - name: get users to determine if ansible user already exists
+    scale_computing.hypercore.api:
+      action: get
+      endpoint: /rest/v1/User
+    register: User
+
+  - name: get uuid ansible user if exist 
+    ansible.builtin.set_fact:
+      ansible_user_uuid: "{{ item.uuid }}" #will be not defined if ansible user doesn't exist
+    when: item.username == "ansible"  
+    loop: '{{ User.record | from_yaml_all | list }}'
+
+  - name: create ansible user with admin role #will be skipped if user already exists
+    scale_computing.hypercore.api:
+      action: post
+      endpoint: /rest/v1/User
+      data:
+        username: "ansible"
+        password: "ansible"
+        fullName: "Account for running Ansible playbooks with admin role"
+        roleUUIDs: ["{{admin_role_uuid}}",]
+    when: ansible_user_uuid is not defined
+  
+
+
+

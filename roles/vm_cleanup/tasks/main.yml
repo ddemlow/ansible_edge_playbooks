@@ -1,0 +1,12 @@
+---
+# tasks file for vm_cleanup
+  - name: Clean up old vms  # example of removing any old template or vm
+    scale_computing.hypercore.vm:
+      vm_name: "{{ item }}"
+      state: absent
+    loop:
+      - ubuntu20_0
+      - oldvm
+      - demo1
+      - "demo1-{{ site_name }}"
+      - demo2

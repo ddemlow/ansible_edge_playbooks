@@ -1,3 +1,5 @@
                   hc_alt_host: "szt15b-02.lab.local"
                   site_name: staging2
                   pos_address:  10.6.42.22
+                  hypercore_desired_version: 9.2.6.209907
+                  hypercore_update_uuid: 9.2.7.209907 #added only because of odd 9.2.4 uuid

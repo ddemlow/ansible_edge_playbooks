@@ -1,5 +1,4 @@
----
-- name: Retail-edge workload deployment playbook
+- name: Retail-edge VM cleanup_old_vms playbook
   hosts: edge # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
   connection: ansible.builtin.local
   gather_facts: false
@@ -9,8 +8,5 @@
     SC_USERNAME: "{{ scale_user }}"
     SC_PASSWORD: "{{ scale_pass }}"
 
-- ansible.builtin.import_playbook: template.yml
-- ansible.builtin.import_playbook: pharmacy.yml
-- ansible.builtin.import_playbook: pos.yml
-- ansible.builtin.import_playbook: security.yml
-
+  roles:
+  - vm_cleanup
