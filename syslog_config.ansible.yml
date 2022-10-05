@@ -1,0 +1,8 @@
+- name: Configure AlertSyslogTarget across clusters using syslog_ip variable from inventory file
+  hosts: edge
+  connection: local
+  roles:
+  - syslog_config
+
+
+

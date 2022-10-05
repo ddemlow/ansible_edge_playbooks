@@ -13,5 +13,5 @@
   roles:
     - vm_cleanup
     - check-ide # check for vms with ide disks
-    - hypercore_version # checks and corrects hypercore version vs. desiredo
-
+    - hypercore_version # checks and corrects hypercore version vs. desired
+    - syslog_config #check that desired syslog server is (last) in list - and correct
