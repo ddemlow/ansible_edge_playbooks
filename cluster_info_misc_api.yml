@@ -1,0 +1,102 @@
+---
+- name: get cluster info using scale_computing.hypercore.api module
+  hosts: edge # use ansible-playbook -l group to limit application to specific groups
+  connection: ansible.builtin.local
+  gather_facts: False
+  #strategy: host_pinned #free  #allows each cluster to start next task before all clusters have finished current task
+  environment:
+    SC_HOST: "https://{{inventory_hostname}}"
+    SC_USERNAME: "{{scale_user}}"
+    SC_PASSWORD: "{{scale_pass}}"   
+  
+  tasks:
+  - name: get hypercore cluster object using REST api
+    scale_computing.hypercore.api:
+      action: get
+      endpoint: /rest/v1/Cluster
+    check_mode: no        
+    register: cluster_info
+    tags:
+    - checkversion
+
+  - name: get hypercore node object using REST api
+    scale_computing.hypercore.api:
+      action: get
+      endpoint: /rest/v1/Node
+    check_mode: no
+    register: node_info
+    tags:
+    - checkversion
+
+  # - name: get hypercore Timezone object using REST api
+  #   scale_computing.hypercore.api:
+  #     action: get
+  #     cluster_instance:
+  #       host: "https://{{inventory_hostname }}"
+  #       username: "{{scale_user}}"
+  #       password: "{{scale_pass}}"
+  #     endpoint: /rest/v1/TimeZone
+  #   register: timezone
+
+  # - name: get hypercore TimeSource object using REST api
+  #   scale_computing.hypercore.api:
+  #     action: get
+  #     cluster_instance:
+  #       host: "https://{{inventory_hostname }}"
+  #       username: "{{scale_user}}"
+  #       password: "{{scale_pass}}"
+  #     endpoint: /rest/v1/TimeSource
+  #   register: timesource
+
+  # - name: get hypercore Registration object using REST api
+  #   scale_computing.hypercore.api:
+  #     action: get
+  #     cluster_instance:
+  #       host: "https://{{inventory_hostname }}"
+  #       username: "{{scale_user}}"
+  #       password: "{{scale_pass}}"
+  #     endpoint: /rest/v1/Registration
+  #   register: Registration   
+
+  # - name: get hypercore OIDC object using REST api
+  #   scale_computing.hypercore.api:
+  #     action: get
+  #     cluster_instance:
+  #       host: "https://{{inventory_hostname }}"
+  #       username: "{{scale_user}}"
+  #       password: "{{scale_pass}}"
+  #     endpoint: /rest/v1/OIDCConfig
+  #   register: OIDCConfig    
+
+  # - name: get hypercore DNSConfig object using REST api
+  #   scale_computing.hypercore.api:
+  #     action: get
+  #     cluster_instance:
+  #       host: "https://{{inventory_hostname }}"
+  #       username: "{{scale_user}}"
+  #       password: "{{scale_pass}}"
+  #     endpoint: /rest/v1/DNSConfig
+  #   register: DNSConfig 
+
+  # - name: get conditions
+  #   scale_computing.hypercore.api:
+  #     action: get
+  #     cluster_instance:
+  #       host: "{{ inventory_hostname }}"
+  #       username: "{{scale_user}}"
+  #       password: "{{scale_pass}}"
+  #     endpoint: /rest/v1/Condition
+  #   register: conditions
+  #   when: icosVersion is search("9.2.4")
+
+  # - name: List all isos
+  #   scale_computing.hypercore.iso_info:
+  #     cluster_instance:
+  #       host: "https://{{ inventory_hostname }}"
+  #       username: "{{scale_user}}"
+  #       password: "{{scale_pass}}"
+  #   register: iso_results
+
+  # - name: output iso_results
+  #   ansible.builtin.debug:
+  #     var: iso_results  

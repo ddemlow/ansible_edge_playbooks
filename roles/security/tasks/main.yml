@@ -50,12 +50,12 @@
       items:
         - disk_slot: 0
           type: virtio_disk
-          size: "{{ '50 GB' | human_to_bytes }}"
-          tiering_priority_factor: 4
+          size: "{{ '50 GB' | human_to_bytes }}" #50GB | human to bytes results in 52.7GB VSD in Hypercore
+          tiering_priority_factor: 3
         - disk_slot: 1
           type: virtio_disk
-          size: "{{ '100 GB' | human_to_bytes }}"
-#          tiering_priority_factor: 32 - currently takes 2 passes to apply
+          size: "{{ 200 * 1000 * 1000 * 1000 }}" # This calculation results in 200GB VSD in Hypercore
+          tiering_priority_factor: 1
       state: present
     tags:    # tags - allow selective task execution with -t at command line
       - security
