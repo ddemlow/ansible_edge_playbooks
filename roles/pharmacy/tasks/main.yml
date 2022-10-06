@@ -65,7 +65,7 @@
     tags:    # tags - allow selective task execution with -t at command line
       - pharmacy
 
-  - name: Set Pharmacy VM node affinity by peer ID - prefer node 2, backup node 1 - opposite of POS VM 
+  - name: Set Pharmacy VM node affinity by peer ID - prefer node 2, backup node 1 
     scale_computing.hypercore.vm_node_affinity:
       vm_name: "pharmacy-{{ site_name }}"
       strict_affinity: false

@@ -50,7 +50,7 @@
       items:
         - disk_slot: 0
           type: virtio_disk
-          size: "{{ '50 GB' | human_to_bytes }}" #50GB | human to bytes results in 52.7GB VSD in Hypercore
+          size: "{{ '50 GB' | human_to_bytes }}" #50GB | human to bytes results in 53.7GB VSD in Hypercore
           tiering_priority_factor: 3
         - disk_slot: 1
           type: virtio_disk
@@ -74,3 +74,23 @@
       power_state: start
     tags:    # tags - allow selective task execution with -t at command line
       - security
+
+  - name: Clear security  VM node affinity #ensure there are no affinity settings - allow hypercore to place freely - even if user has moved vms
+    scale_computing.hypercore.vm_node_affinity:
+      vm_name: "security-{{ site_name }}"
+      strict_affinity: false
+      preferred_node:
+        node_uuid: ""
+      backup_node:
+        node_uuid: ""    
+    ignore_errors: no 
+
+  # - name: Set security  VM node affinity by peer ID - node 1 only #example if there were some licensing or network configuration restriction
+  #   scale_computing.hypercore.vm_node_affinity:
+  #     vm_name: "security-{{ site_name }}"
+  #     strict_affinity: false
+  #     preferred_node:
+  #       peer_id: 1
+  #     backup_node:
+  #       node_uuid: ""    #no backup - with strict will set condition due to no failover ability
+  #   ignore_errors: no 

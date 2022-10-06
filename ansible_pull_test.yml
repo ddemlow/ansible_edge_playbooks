@@ -1,0 +1,93 @@
+---
+- name: test ansible pull options
+  hosts: all # use ansible-playbook -l group to limit application to specific groups
+  connection: ansible.builtin.local
+  gather_facts: False
+  #strategy: host_pinned #free  #allows each cluster to start next task before all clusters have finished current task
+  environment:
+    SC_HOST: "https://{{ inventory_hostname }}"  #this works when executing ansible-pull directly on SCEL host
+    SC_USERNAME: "admin"
+    SC_PASSWORD: "admin"
+
+  tasks:
+  - name: get hypercore cluster object using REST api
+    scale_computing.hypercore.api:
+      action: get
+      endpoint: /rest/v1/Cluster
+    check_mode: no
+    register: cluster_info
+    tags:
+    - checkversion
+
+  - name: get hypercore node object using REST api
+    scale_computing.hypercore.api:
+      action: get
+      endpoint: /rest/v1/Node
+    check_mode: no
+    register: node_info
+    tags:
+    - checkversion
+
+  - name: Import and configure ansible_runner VM - if not present
+    scale_computing.hypercore.vm_import:
+      vm_name: "ansible_runner"
+      http_uri:
+        path: 'https://github.com/ddemlow/RestAPIExamples/raw/master/ubuntu20_04-cloud-init'
+        file_name: ubuntu20_04-cloud-init.xml
+      cloud_init:
+        user_data: |
+          #cloud-config
+          password: "password"
+          chpasswd: { expire: False }
+          ssh_pwauth: True
+          apt: {sources: {docker.list: {source: 'deb [arch=amd64] https://download.docker.com/linux/ubuntu $RELEASE stable', keyid: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88}}}
+          packages: [qemu-guest-agent, docker-ce, docker-ce-cli, docker-compose, ansible, git, unzip]
+          bootcmd:
+            - [ sh, -c, 'sudo echo GRUB_CMDLINE_LINUX="nomodeset" >> /etc/default/grub' ]
+            - [ sh, -c, 'sudo echo GRUB_GFXPAYLOAD_LINUX="1024x768" >> /etc/default/grub' ]
+            - [ sh, -c, 'sudo echo GRUB_DISABLE_LINUX_UUID=true >> /etc/default/grub' ]
+            - [ sh, -c, 'sudo update-grub' ]
+          runcmd:
+            - [ systemctl, restart, --no-block, qemu-guest-agent ]
+            - [ curl -s https://api.sc-platform.sc-platform.avassa.net/install | sudo sh -s -- -y -c  ]
+          write_files:
+          # configure docker daemon to be accessible remotely via TCP on socket 2375
+          - content: |
+              [Service]
+              ExecStart=
+              ExecStart=/usr/bin/dockerd -H unix:// -H tcp://0.0.0.0:2375
+            path: /etc/systemd/system/docker.service.d/options.conf
+        meta_data: |
+          dsmode: local
+          local-hostname: "ansible_runner"
+
+#    register: ansible_runner
+#   tags:    # tags - allow selective task execution with -t at command line
+#    - ansible
+
+  - name: ansible_runner disk desired configuration
+    scale_computing.hypercore.vm_disk:
+      vm_name: "ansible_runner"
+      items:
+        - disk_slot: 0
+          type: virtio_disk
+          size: "{{ '50 GB' | human_to_bytes }}" #50GB | human to bytes results in 53.7GB VSD in Hypercore
+          tiering_priority_factor: 3
+          tiering_priority_factor: 11
+      state: present
+    tags:    # tags - allow selective task execution with -t at command line
+      - security
+
+  - name: anbsible_runner Vm desired configuration and state
+    scale_computing.hypercore.vm_params:
+      vm_name: "ansible_runner"
+      memory: "{{ '1 GB' | human_to_bytes }}"
+      description: "ansible-pull runner vm"
+      tags:
+        - demo
+        - ansible
+        - security
+      vcpu: 2
+      power_state: start
+    tags:    # tags - allow selective task execution with -t at command line
+      - security
