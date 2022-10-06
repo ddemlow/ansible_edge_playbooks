@@ -15,3 +15,4 @@
     - check-ide # check for vms with ide disks
     - hypercore_version # checks and corrects hypercore version vs. desired
     - syslog_config #check that desired syslog server is (last) in list - and correct
+    - schedules # check the each cluster has expected snapshot schedules created correctly / not modified
