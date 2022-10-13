@@ -5,13 +5,14 @@ all:
         staging: #clusters here for pre-production staging / testing
           hosts:
             "szt15b-01.lab.local": 
-            "dzt09a-01.lab.local": 
+            "dzt09a-01.lab.local":
         region1:  #production site clusters in region 1 
           children:
             corporate: #corporate owned stores
               hosts:
                 "ozt60b-01.lab.local": #store2
-                "ozt18a-01.lab.local": #store3             
+                "ozt18a-01.lab.local": #store3 
+                "10.100.24.28": #ztp demo        
             franchise: #franchise owned stores managed as a service
               hosts:
                 "vfz31a-01.lab.local": #store F1

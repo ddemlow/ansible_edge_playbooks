@@ -47,10 +47,12 @@
     tags:
     - checkversion
 
-  # - name: apply desired version to cluster
-  #   scale_computing.hypercore.api:
-  #     action: post
-  #     endpoint: /rest/v1/Update/{{hypercore_update_uuid}}/apply
-  #   register: update_desired
-  #   when: ( cluster_info.record[0].icosVersion  | trim ) != hypercore_desired_version
+#need to call sns_vm_shutdown here when node count > 1
+
+  - name: apply desired version to cluster
+    scale_computing.hypercore.api:
+      action: post
+      endpoint: /rest/v1/Update/{{hypercore_update_uuid}}/apply
+    register: update_desired
+    when: ( cluster_info.record[0].icosVersion  | trim ) != hypercore_desired_version
 

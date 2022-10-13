@@ -3,3 +3,6 @@
     hypercore_desired_version: 9.1.17.209266
     http_import_uri: https://github.com/ddemlow/RestAPIExamples/raw/master/
     http_import_name: ubuntu18_04-cloud-init
+    scale_role: test
+    pos_address:  192.168.1.200
+    site_name: site

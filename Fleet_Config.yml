@@ -9,6 +9,8 @@
     SC_USERNAME: "{{ scale_user }}"
     SC_PASSWORD: "{{ scale_pass }}"
 
+- ansible.builtin.import_playbook: schedules.yml
+- ansible.builtin.import_playbook: createuser_api.yml
 - ansible.builtin.import_playbook: template.yml
 - ansible.builtin.import_playbook: pharmacy.yml
 - ansible.builtin.import_playbook: pos.yml

@@ -1,7 +1,7 @@
 ---
 # tasks file for schedules
 
-  - name: Setup snapshot schedule 
+  - name: Setup standard snapshot schedule 
     scale_computing.hypercore.snapshot_schedule:
       name: snap-daily-midnight
       state: present

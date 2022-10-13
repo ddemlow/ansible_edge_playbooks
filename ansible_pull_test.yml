@@ -1,6 +1,6 @@
 ---
 - name: test ansible pull options
-  hosts: all # use ansible-playbook -l group to limit application to specific groups
+  hosts: all
   connection: ansible.builtin.local
   gather_facts: False
   #strategy: host_pinned #free  #allows each cluster to start next task before all clusters have finished current task
@@ -86,7 +86,6 @@
       tags:
         - demo
         - ansible
-        - security
       vcpu: 2
       power_state: start
     tags:    # tags - allow selective task execution with -t at command line

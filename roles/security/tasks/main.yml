@@ -38,12 +38,6 @@
     tags:    # tags - allow selective task execution with -t at command line
       - security
 
-  #   notify:
-  #     - pharmacy-created
-
-  # - name: Flush handlers  #notifies handlers right away instead of at end of playbook
-  #   meta: flush_handlers
-
   - name: Security Vm disk desired configuration
     scale_computing.hypercore.vm_disk:
       vm_name: "security-{{ site_name }}"
@@ -80,17 +74,17 @@
       vm_name: "security-{{ site_name }}"
       strict_affinity: false
       preferred_node:
-        node_uuid: ""
+        peer_id: 1
       backup_node:
         node_uuid: ""    
-    ignore_errors: no 
+    ignore_errors: yes 
 
   # - name: Set security  VM node affinity by peer ID - node 1 only #example if there were some licensing or network configuration restriction
   #   scale_computing.hypercore.vm_node_affinity:
   #     vm_name: "security-{{ site_name }}"
   #     strict_affinity: false
   #     preferred_node:
-  #       peer_id: 1
+  #       peerID: 1
   #     backup_node:
   #       node_uuid: ""    #no backup - with strict will set condition due to no failover ability
   #   ignore_errors: no 
