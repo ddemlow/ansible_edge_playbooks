@@ -1,0 +1,4 @@
+---
+collections:
+  - name: scale_computing.hypercore
+    version: 1.0.0
