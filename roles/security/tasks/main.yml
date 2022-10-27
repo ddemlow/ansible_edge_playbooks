@@ -7,6 +7,7 @@
         - demo
         - ansible
         - cloudinit
+        - ansible_group__storeapps # this will create tag used by hypercore inventory plugin when executing towards VM hosts
       source_vm_name: ubuntu20_04
       cloud_init:
         user_data: |
@@ -14,6 +15,9 @@
           password: "password"
           chpasswd: { expire: False }
           ssh_pwauth: True
+          ssh_authorized_keys: # Add your ssh public key for publickey authentication
+              - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDihWWhjoPj8KVLtdLDwNJQ71zi9An0iUFjefRWu2Eju ddemlow@scalecomputing.com
+          disable_root: false # allow ssh root login
           apt: {sources: {docker.list: {source: 'deb [arch=amd64] https://download.docker.com/linux/ubuntu $RELEASE stable', keyid: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88}}}
           packages: [qemu-guest-agent, docker-ce, docker-ce-cli, docker-compose, unzip]
           bootcmd:
@@ -64,6 +68,7 @@
         - ansible
         - security
         - "{{ site_name }}"
+        - ansible_group__storeapps # this will create tag used by hypercore inventory plugin when executing towards VM hosts
       vcpu: 2
       power_state: start
     tags:    # tags - allow selective task execution with -t at command line
@@ -87,4 +92,82 @@
   #       peerID: 1
   #     backup_node:
   #       node_uuid: ""    #no backup - with strict will set condition due to no failover ability
-  #   ignore_errors: no 
+  #   ignore_errors: no
+
+  #TODO - should write as block with common vars
+
+  - name: Clone vm security CONTRACTOR jumpbox - if not present - this VM should normally be turned off
+    scale_computing.hypercore.vm_clone:
+      vm_name: "securityCONTRACTOR-{{ site_name }}"
+      tags:
+        - demo
+        - ansible
+        - cloudinit
+        - ansible_group__contractor # this will create tag used by hypercore inventory plugin when executing towards VM hosts
+      source_vm_name: ubuntu20_04
+      cloud_init:
+        user_data: |
+          #cloud-config
+          password: "password"
+          chpasswd: { expire: False }
+          ssh_pwauth: True
+          ssh_authorized_keys: # Add your ssh public key for publickey authentication
+              - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDihWWhjoPj8KVLtdLDwNJQ71zi9An0iUFjefRWu2Eju ddemlow@scalecomputing.com
+          disable_root: false # allow ssh root login
+          apt: {sources: {docker.list: {source: 'deb [arch=amd64] https://download.docker.com/linux/ubuntu $RELEASE stable', keyid: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88}}}
+          packages: [qemu-guest-agent, docker-ce, docker-ce-cli, docker-compose, unzip]
+          bootcmd:
+            - [ sh, -c, 'sudo echo GRUB_CMDLINE_LINUX="nomodeset" >> /etc/default/grub' ]
+            - [ sh, -c, 'sudo echo GRUB_GFXPAYLOAD_LINUX="1024x768" >> /etc/default/grub' ]
+            - [ sh, -c, 'sudo echo GRUB_DISABLE_LINUX_UUID=true >> /etc/default/grub' ]
+            - [ sh, -c, 'sudo update-grub' ]
+          runcmd:
+            - [ systemctl, restart, --no-block, qemu-guest-agent ]
+            - [ curl -s https://api.sc-platform.sc-platform.avassa.net/install | sudo sh -s -- -y -c  ]
+          write_files:
+          # configure docker daemon to be accessible remotely via TCP on socket 2375
+          - content: |
+              [Service]
+              ExecStart=
+              ExecStart=/usr/bin/dockerd -H unix:// -H tcp://0.0.0.0:2375
+            path: /etc/systemd/system/docker.service.d/options.conf
+        meta_data: |
+          dsmode: local
+          local-hostname: "securityCONTRACTOR-{{ site_name }}"
+    register: security
+    tags:    # tags - allow selective task execution with -t at command line
+      - security 
+#TODO - optionally use handler when created to power up - wait for cloud-init then power off - as is will still cloud-init when booted - will just take longer
+
+  - name: Security CONTRACTOR Vm disk desired configuration
+    scale_computing.hypercore.vm_disk:
+      vm_name: "securityCONTRACTOR-{{ site_name }}"
+      items:
+        - disk_slot: 0
+          type: virtio_disk
+          size: "{{ '50 GB' | human_to_bytes }}" #50GB | human to bytes results in 53.7GB VSD in Hypercore
+          tiering_priority_factor: 3
+        - disk_slot: 1
+          type: virtio_disk
+          size: "{{ 200 * 1000 * 1000 * 1000 }}" # This calculation results in 200GB VSD in Hypercore
+          tiering_priority_factor: 1  # as of 10/26 - this is taking 2 passes to set
+      state: present
+    tags:    # tags - allow selective task execution with -t at command line
+      - security
+
+  - name: Security CONTRACTOR Vm desired configuration and state
+    scale_computing.hypercore.vm_params:
+      vm_name: "securityCONTRACTOR-{{ site_name }}"
+      description: "Keep Powered Off when not in use by CONTRACTOR"
+      memory: "{{ '1 GB' | human_to_bytes }}"
+      tags:
+        - demo
+        - ansible
+        - security
+        - "{{ site_name }}"
+        - ansible_group__contractor # this will create tag used by hypercore inventory plugin when executing towards VM hosts
+      vcpu: 2
+      power_state: stop
+    tags:    # tags - allow selective task execution with -t at command line
+      - security
+

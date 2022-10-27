@@ -52,7 +52,7 @@
   - name: apply desired version to cluster
     scale_computing.hypercore.api:
       action: post
-      endpoint: /rest/v1/Update/{{hypercore_update_uuid}}/apply
+      endpoint: /rest/v1/Update/{{ hypercore_desired_version }}/apply
     register: update_desired
     when: ( cluster_info.record[0].icosVersion  | trim ) != hypercore_desired_version
 

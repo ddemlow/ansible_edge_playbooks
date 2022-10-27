@@ -15,6 +15,9 @@
           password: "password"
           chpasswd: { expire: False }
           ssh_pwauth: True
+          ssh_authorized_keys: # Add your ssh public key for publickey authentication
+              - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDihWWhjoPj8KVLtdLDwNJQ71zi9An0iUFjefRWu2Eju ddemlow@scalecomputing.com
+          disable_root: false # allow ssh root login
           apt: {sources: {docker.list: {source: 'deb [arch=amd64] https://download.docker.com/linux/ubuntu $RELEASE stable', keyid: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88}}}
           packages: [qemu-guest-agent, docker-ce, docker-ce-cli, docker-compose, unzip]
           bootcmd:
@@ -59,6 +62,7 @@
         - demo
         - ansible
         - pharmacy
+        - ansible_group__storeapps # this will create tag used by hypercore inventory plugin when executing towards VM hosts
         - "{{ site_name }}"
       vcpu: 2
       power_state: start

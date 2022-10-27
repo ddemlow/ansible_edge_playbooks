@@ -1,0 +1,83 @@
+---
+- name: Configure "storeapps" group directly ansible connection using HyperCore dynamic inventory
+  hosts: storeapps
+  gather_facts: true
+  become: yes
+
+  tasks:
+    # - name: Wait 300 seconds, but only start checking after 60 seconds
+    #   ansible.builtin.wait_for_connection:
+    #     delay: 5
+    #     timeout: 120
+
+    - name: Display ansible_host variable for VM - retrieved from guest agent (or populated via HyperCore tag)
+      ansible.builtin.debug:
+        msg: "{{ ansible_host }}" # shows ip retrieved from cluster if it exists
+
+    - name: Ansible / ssh Ping hypercore VMs from inventory
+      ping:      
+
+    # - name: output hostnames
+    #   ansible.builtin.debug:
+    #     name: "{{ inventory_hostname }}"
+
+    - name:  remove nginx from guest OS - if present
+      ansible.builtin.package:
+        name: nginx
+        state: absent 
+
+    # - name: Enable nginx on guest OS
+    #   ansible.builtin.service:
+    #     name: nginx
+    #     state: stopped
+
+    # - name: Install podman into VM guest OS
+    #   ansible.builtin.apt:
+    #     name: podman
+    #     state: present
+    #     update_cache: true
+
+    # - name: Enable podman on guest OS
+    #   ansible.builtin.service:
+    #     name: podman
+    #     state: started
+
+    - name: Start docker container 
+      community.docker.docker_container:
+        name: cms-app
+        image: quay.io/justinc1_github/django-cms:1
+        state: started
+        restart_policy: on-failure
+        ports:
+            - "80:80"
+        #env:
+        #  ALLOWED_HOSTS: "*"
+#        generate_systemd:
+          # container_prefix: cmsapp
+        #path: /opt
+        #restart_policy: on-failure
+
+
+    # - name: Start application
+    #   containers.podman.podman_container:
+    #     name: cms-app
+    #     image: quay.io/justinc1_github/django-cms:1
+    #     state: started
+    #     restart_policy: on-failure
+    #     ports:
+    #         - "80:80"
+    #     #env:
+    #     #  ALLOWED_HOSTS: "*"
+    #     generate_systemd:
+    #       # container_prefix: cmsapp
+    #       path: /opt
+    #       restart_policy: on-failure
+
+    # - name: Enable container as service
+    #   ansible.builtin.command:
+    #     cmd: systemctl enable /opt/container-cms-app.service
+    #     creates: /etc/systemd/system/container-cms-app.service
+
+    - name: Show link to web dashboard
+      ansible.builtin.debug:
+        msg: "Web dashboard is at http://{{ hostvars[inventory_hostname]['ansible_host'] }} "

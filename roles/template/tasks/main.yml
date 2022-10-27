@@ -24,5 +24,7 @@
         - cloudinit
       vcpu: 0
       power_state: stop
+      force_reboot: true
+      shutdown_timeout: 10
     tags:    # tags - allow selective task execution with -t at command line
       - template

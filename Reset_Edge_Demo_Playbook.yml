@@ -1,0 +1,39 @@
+- name: Reset retail-edge workload deployment playbook # comment out steps or VM's you don't want to delete below
+  hosts: edge
+  connection: ansible.builtin.local
+  gather_facts: false
+  tasks:
+  # - name: Get cluster VM info
+  #   scale_computing.hypercore.vm_info:
+  #     cluster_instance:
+  #       host: "https://{{inventory_hostname}}"
+  #       username: "{{scale_user}}"
+  #       password: "{{scale_pass}}"
+  #   register: vm_info
+
+  # - name: output the vm_info request results
+  #   debug:
+  #     var: vm_info
+
+  - name: Delete demo vms
+    scale_computing.hypercore.vm:
+      cluster_instance:
+        host: "https://{{ inventory_hostname }}"
+        username: "{{ scale_user }}"
+        password: "{{ scale_pass }}"
+      vm_name: "{{ item }}"
+      state: absent
+    loop:
+      - demo1
+      - demo2
+#      - ubuntu20_04
+      - "pos-{{ site_name }}"
+      - "demo-{{ site_name }}"
+      - "pharmacy-{{ site_name }}"
+      - "security-{{ site_name }}"
+#      - "securityCONTRACTOR-{{ site_name }}"
+
+  - name: Cleanup old snapshot schedule
+    scale_computing.hypercore.snapshot_schedule:
+      name: ansible-snap-schedule
+      state: absent

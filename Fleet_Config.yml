@@ -1,5 +1,5 @@
 ---
-- name: Retail-edge workload deployment playbook
+- name: Retail-edge VM workload deployment playbook - create and update HyperCore VMs
   hosts: edge # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
   connection: ansible.builtin.local
   gather_facts: false
@@ -9,8 +9,8 @@
     SC_USERNAME: "{{ scale_user }}"
     SC_PASSWORD: "{{ scale_pass }}"
 
-- ansible.builtin.import_playbook: schedules.yml
-- ansible.builtin.import_playbook: createuser_api.yml
+- ansible.builtin.import_playbook: schedules.yml #creates replication schedules available for use
+- ansible.builtin.import_playbook: createuser_api.yml #creates ansible user account on each hypercore cluster
 - ansible.builtin.import_playbook: template.yml
 - ansible.builtin.import_playbook: pharmacy.yml
 - ansible.builtin.import_playbook: pos.yml

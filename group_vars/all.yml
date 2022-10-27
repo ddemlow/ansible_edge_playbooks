@@ -6,3 +6,4 @@
     scale_role: test
     pos_address:  192.168.1.200
     site_name: site
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
