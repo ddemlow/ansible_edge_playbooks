@@ -1,0 +1,30 @@
+- name: create ansible user with admin role using hypercore.api module
+  hosts: edge #use ansible-playbook -l group to limit application to specific groups
+  connection: local
+  strategy: host_pinned #free  #allows each cluster to start next task before all clusters have finished current task
+  environment:
+    SC_HOST: "https://{{inventory_hostname}}"
+    SC_USERNAME: "admin" #override inventory credentials since ansible user may not yet exist
+    SC_PASSWORD: "admin"   
+
+  tasks:
+  - name: get all VMs on cluster
+    scale_computing.hypercore.vm_info:
+    register: all_vms
+
+  - name: Show all VMs
+    ansible.builtin.debug:
+     msg: item.vm_name
+    loop: '{{ all_vms.records }}'
+
+#   - name: Power off all VMs  #need to change to capture names as list and power off 
+#     scale_computing.hypercore.vm_params:
+#       vm_name: "{{ item.vm_name }}"
+#       power_state: stop
+#     loop: "{{ all_vms.records }}"
+# #    when: ( cluster_info.record[0].icosVersion  | trim ) != hypercore_desired_version    
+#     register: restart
+
+#   - name: show changed vms to restart
+#     ansible.builtin.debug:
+#      var: restart

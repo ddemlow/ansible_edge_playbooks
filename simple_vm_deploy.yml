@@ -1,6 +1,6 @@
 ---
 - name: Simple vm deploy #edit vmname variable - use -l filter to specify cluster vs. full inventory
-  hosts: all
+  hosts: edge
   vars:
     - vmname: semaphore2
 #  connection: localhost

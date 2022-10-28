@@ -1,0 +1,11 @@
+              hc_alt_host: "192.168.1.241"
+              scale_user: admin
+              scale_pass: admin
+              scale_role: test
+              pos_address:  192.168.1.200
+              site_name: store101
+              important_vms: |  # list of important vms that should be running (in addition to ansible deployed / managed vms) - also controls start order via playbook
+                - github-runner
+                - IEAM-westfield
+                - acronisAgent
+                - adfs-sso

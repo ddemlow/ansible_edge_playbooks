@@ -17,5 +17,5 @@ Healthcheck.yml playbook runs a set of "health check" roles against inventory pe
 Below is an example of what a specific site configuration should look like
 <img width="1366" alt="image" src="https://user-images.githubusercontent.com/26821128/193714990-73bdfc08-f374-4092-8369-b91b16e44bfc.png">
 
-A recorded demonstration of these playbooks is available [here](https://www.youtube.com/watch?v=Q38-jzft7TM)
+A recorded demonstration of these playbooks is available [here](https://www.youtube.com/playlist?list=PL9lCJn1Rw6oe8GGaDGqOKLAPssRVs7rrQ)
 

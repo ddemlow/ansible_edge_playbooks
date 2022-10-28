@@ -1,6 +1,6 @@
     scale_user: ansible
     scale_pass: ansible
-    hypercore_desired_version: 9.1.17.209266
+    hypercore_desired_version: 9.1.18.209840
     http_import_uri: https://github.com/ddemlow/RestAPIExamples/raw/master/
     http_import_name: ubuntu18_04-cloud-init
     scale_role: test

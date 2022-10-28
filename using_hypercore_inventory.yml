@@ -3,6 +3,7 @@
   hosts: storeapps
   gather_facts: true
   become: yes
+  strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
 
   tasks:
     # - name: Wait 300 seconds, but only start checking after 60 seconds
@@ -15,7 +16,7 @@
         msg: "{{ ansible_host }}" # shows ip retrieved from cluster if it exists
 
     - name: Ansible / ssh Ping hypercore VMs from inventory
-      ping:      
+      ping:
 
     # - name: output hostnames
     #   ansible.builtin.debug:
@@ -25,6 +26,10 @@
       ansible.builtin.package:
         name: nginx
         state: absent 
+
+    - name: Upgrade all apt packages
+      apt: upgrade=dist force_apt_get=yes
+
 
     # - name: Enable nginx on guest OS
     #   ansible.builtin.service:

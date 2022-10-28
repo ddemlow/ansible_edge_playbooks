@@ -1,5 +1,0 @@
-                  hc_alt_host: "ozt60b-02.lab.local"
-                  pos_address:  10.6.42.21
-                  site_name: store2
-                  hypercore_desired_version: 9.2.3.208915  #dell eol max version
-                  hypercore_update_uuid: 9.2.3.208915 #added only because of odd 9.2.4 uuid
