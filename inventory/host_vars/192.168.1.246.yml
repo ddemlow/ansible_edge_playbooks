@@ -1,4 +1,5 @@
-              pos_address:  192.168.1.201
-              site_name: store102
-              important_vms: |  # list of important vms that should be running (in addition to ansible deployed / managed vms) - also controls start order via playbook
-                - acronisAppliance
+pos_address:  192.168.1.201
+site_name: store102
+important_vms: |  # list of important vms that should be running (in addition to ansible deployed / managed vms) - also controls start order via playbook
+  - acronisAppliance
+support_tunnel: 3272

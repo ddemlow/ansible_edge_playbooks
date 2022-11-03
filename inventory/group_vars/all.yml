@@ -4,6 +4,7 @@
     http_import_uri: https://github.com/ddemlow/RestAPIExamples/raw/master/
     http_import_name: ubuntu18_04-cloud-init
     scale_role: test
+    support_tunnel: false
     pos_address:  192.168.1.200
     site_name: site
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'

@@ -1,0 +1,63 @@
+---
+# TODO iterate across all nodes in cluster?  - account for multiple tunnels in cluster?
+  - name: Check remote support status
+    uri:  
+      url: http://{{ansible_host}}/support-api/check
+      method: GET
+      return_content: true
+      status_code: 200
+      body_format: json
+    register: rs_status
+
+  - name: Show remote_support status
+    debug:
+      msg: "{{inventory_hostname}} remote support status {{ (rs_status.content | from_json) ['tunnelOpen'] }} - policy should be {{ support_tunnel }}"
+
+  - name: Show remote_support out of compliance
+    debug:
+      msg: "{{inventory_hostname}} remote support status {{ (rs_status.content | from_json) ['tunnelOpen'] }} does not match policy {{ support_tunnel }}"
+    when: ( rs_status.content | from_json) ['tunnelOpen'] != support_tunnel
+    register: rs_change_needed
+
+  - name: rs in compliance - end host execution for host
+    ansible.builtin.meta: end_host
+    when: ( rs_status.content | from_json) ['tunnelOpen'] == support_tunnel
+
+  - name: Close open tunnels that violate "false" policy
+    uri:
+      url: http://{{ansible_host}}/support-api/close
+      method: GET
+      return_content: true
+      status_code: 200
+      body_format: json
+    register: rs_closed
+    when: support_tunnel == false and ( rs_status.content | from_json) ['tunnelOpen'] != support_tunnel
+    changed_when: support_tunnel == false and ( rs_status.content | from_json) ['tunnelOpen'] != support_tunnel
+
+  - name: Open tunnels per policy (if "false" or incorrect )
+    uri:
+      url: http://{{ansible_host}}/support-api/open?code={{ support_tunnel }}
+      method: GET
+      return_content: false
+      status_code: 200,-1
+      body_format: json
+    register: rs_closed
+    when: support_tunnel != false and ( rs_status.content | from_json) ['tunnelOpen'] != support_tunnel
+    changed_when: support_tunnel != false and ( rs_status.content | from_json) ['tunnelOpen'] != support_tunnel
+
+#TODO - need confirmation on open = for example - conflicting ports will not allow to open
+
+  - name: Check remote support status again 
+    uri:  
+      url: http://{{ansible_host}}/support-api/check
+      method: GET
+      return_content: true
+      status_code: 200
+      body_format: json
+    register: rs_status
+
+  - name: Fail if still out of compliance
+    fail:
+      msg: "{{inventory_hostname}} remote support status {{ (rs_status.content | from_json) ['tunnelOpen'] }} does not match policy {{ support_tunnel }}"
+    when: ( rs_status.content | from_json) ['tunnelOpen'] != support_tunnel
+    register: rs_change_needed

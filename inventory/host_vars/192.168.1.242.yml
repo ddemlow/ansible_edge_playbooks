@@ -1,10 +1,11 @@
-              pos_address:  192.168.1.203
-              pharm_address: 192.168.1.204
-              site_name: store104
-              important_vms: |  # list of important vms that should be running (in addition to ansible deployed / managed vms) - also controls start order via playbook
-                - pm-edge-svr
-                - pm-edge-mgmt
-                - acronisAppliance
-                - rh85-ansible
-                - aws-storage-gateway
-                - milestone-ny
+pos_address:  192.168.1.203
+pharm_address: 192.168.1.204
+site_name: store104
+important_vms: |  # list of important vms that should be running (in addition to ansible deployed / managed vms) - also controls start order via playbook
+  - pm-edge-svr
+  - pm-edge-mgmt
+  - acronisAppliance
+  - rh85-ansible
+  - aws-storage-gateway
+  - milestone-ny
+support_tunnel: 3270
