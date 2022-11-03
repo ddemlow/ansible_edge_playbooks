@@ -12,7 +12,7 @@ all:
               hosts:
                 "ozt60b-01.lab.local": #store2
                 "ozt18a-01.lab.local": #store3 
-#                "10.100.24.28": #ztp demo        
+                "10.100.24.19":
             franchise: #franchise owned stores managed as a service
               hosts:
                 "vfz31a-01.lab.local": #store F1

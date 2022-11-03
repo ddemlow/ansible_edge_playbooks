@@ -1,58 +1,150 @@
----
-# tasks file for hypercore_version
-  - name: get hypercore cluster object using REST api
+
+  - name: Get hypercore cluster info object using REST api
     scale_computing.hypercore.api:
       action: get
       endpoint: /rest/v1/Cluster
-    check_mode: no        
+    check_mode: false
     register: cluster_info
     tags:
-    - checkversion
+      - checkversion
 
-  - name: get hypercore node object using REST api
+  - name: Get hypercore node info object using REST api
     scale_computing.hypercore.api:
       action: get
       endpoint: /rest/v1/Node
-    check_mode: no
+    check_mode: false
     register: node_info
     tags:
-    - checkversion
+      - checkversion
 
-  - name: set hypercore clusterName icosVersion and nodeCount as ansible facts 
+  - name: Set hypercore clusterName icosVersion and nodeCount as ansible facts # not required - can use vars directly
     ansible.builtin.set_fact:
       clusterName: '{{ item.clusterName }}'
       icosVersion: '{{ item.icosVersion | trim }}'
       nodeCount: '{{ node_info.record | length }}'
     loop: '{{ cluster_info.record | from_yaml_all | list }}'
     tags:
-    - checkversion
+      - checkversion
 
-  # - name: Print the transformed variables
-  #   ansible.builtin.debug:
-  #     var: clusterName, icosVersion, nodeCount, hypercore_desired_version, cluster_info.record[0].icosVersion | trim
+  - name: Report if out of version compliance (skipped if compliant - host execution will end)
+    ansible.builtin.debug: 
+      msg: update required on  {{inventory_hostname}} {{cluster_info.record[0].clusterName }} is {{cluster_info.record[0].icosVersion | trim }} while desired version is {{hypercore_desired_version}} 
+    when: ( cluster_info.record[0].icosVersion  | trim ) != hypercore_desired_version
+    ignore_errors: yes
+    tags:
+      - checkversion
 
-  - name: get hypercore available updates using REST api
+  - name: Check version compliance - end host execution if compliant - else continue checking
+    ansible.builtin.meta: end_host
+    when: ( cluster_info.record[0].icosVersion  | trim ) == hypercore_desired_version
+
+  - name: Get hypercore available updates using REST api
     scale_computing.hypercore.api:
       action: get
       endpoint: /rest/v1/Update
-    check_mode: no
+    check_mode: false
     register: update
     tags:
-    - checkversion
+      - checkversion
 
-  - name: report ouf of version compliance
-    ansible.builtin.fail:
-      msg: update required on  {{inventory_hostname}} {{cluster_info.record[0].clusterName }} is {{cluster_info.record[0].icosVersion}} while desired version is {{hypercore_desired_version}} 
-    when: ( cluster_info.record[0].icosVersion  | trim ) != hypercore_desired_version
+  - name: Clear shutdown_vms list # clear array
+    ansible.builtin.set_fact:
+      apply_update: []
+
+  - name: Check if desired version is AVAILABLE - set fact apply_update  # if trying a version that doesn't exist - just will do nothing - but don't want to shut down vms
+    ansible.builtin.set_fact:
+      apply_update: "{{ item.uuid | trim }}"
+    when: item.uuid | trim == hypercore_desired_version
+    loop: "{{ update.record | from_yaml | list }}"
+    ignore_errors: false
     tags:
-    - checkversion
+      - checkversion
 
-#need to call sns_vm_shutdown here when node count > 1
+  - name: Output available update version to apply
+    ansible.builtin.debug:
+      msg: ready to apply {{apply_update}}
+    when: apply_update != []
+    tags:
+      - checkversion
 
-  - name: apply desired version to cluster
+  - name: Output if NO available update version to apply - host will terminate
+    ansible.builtin.debug:
+      msg: Update to desired version is not available to cluster {{ inventory_hostname }}
+    when: apply_update == []
+    tags:
+      - checkversion
+
+  - name: End host processing if no update available
+    ansible.builtin.meta: end_host
+    when: apply_update == []
+    tags:
+      - checkversion
+
+#if this far - there is a desired version update available to cluster 
+
+  - name: Get all VMs on cluster if SNS to prepare for shutdown
+    scale_computing.hypercore.vm_info:
+    register: all_vms
+    when: ( node_info.record | length ) == 1
+
+  - name: Clear shutdown_vms list # clear array
+    ansible.builtin.set_fact:
+      shutdown_vms: []
+
+  - name: Find running VMs and add to shutdown_vms fact if SNS
+    ansible.builtin.set_fact:
+      shutdown_vms: "{{ shutdown_vms + ([{'uuid':vm.uuid, 'vm_name':vm.vm_name, 'power_state':vm.power_state}] if (vm.power_state == 'started') else [])  }}"
+    loop: "{{ all_vms.records }}"
+    loop_control:
+      loop_var: vm
+    when: ( node_info.record | length ) == 1
+
+  - name: Shutdown running VM's if SNS 
+    scale_computing.hypercore.vm_params:
+      vm_name: "{{ item.vm_name }}"
+      power_state: stop
+    loop: "{{ shutdown_vms }}"
+    when: ( node_info.record | length ) == 1
+
+  - name: apply desired version to cluster or SNS
     scale_computing.hypercore.api:
       action: post
       endpoint: /rest/v1/Update/{{ hypercore_desired_version }}/apply
     register: update_desired
     when: ( cluster_info.record[0].icosVersion  | trim ) != hypercore_desired_version
 
+  - include_tasks: check_hc_update.yml      
+
+  - name: Check IF HyperCore version meets desired version late in update # api returns new version before update is completely done - so additional check needed.  won't detect termination 
+    scale_computing.hypercore.api:
+      action: get
+      endpoint: /rest/v1/Cluster
+    register: cluster_info
+    ignore_errors: yes
+    ignore_unreachable: yes
+
+  - name: Show VMs to restart
+    ansible.builtin.debug:
+     msg: "{{shutdown_vms}}"
+    
+  - name: Restart previously running VM's on SNS # if this retry works - maybe just do this - would work on either failure or success? 
+    scale_computing.hypercore.vm_params:
+      vm_name: "{{ item.vm_name }}"
+      power_state: start
+    loop: "{{ shutdown_vms }}"
+    when: ( node_info.record | length ) == 1
+    register: restart
+    until: item.power_state == "started"
+    retries: 10
+    delay: 60
+    ignore_errors: true
+    ignore_unreachable: true
+    timeout: 120
+
+  - name: Report if out of version compliance (skipped if compliant - host execution will end)
+    ansible.builtin.fail:  # not sure fail here is best option - but it's ignored
+      msg: update FAILED on  {{ inventory_hostname }} {{ cluster_info.record[0].clusterName }} is {{ cluster_info.record[0].icosVersion | trim }} while desired version is {{ hypercore_desired_version }} 
+    when: ( cluster_info.record[0].icosVersion  | trim ) != hypercore_desired_version
+    ignore_errors: false
+    tags:
+      - checkversion
