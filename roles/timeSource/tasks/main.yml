@@ -1,0 +1,38 @@
+---
+# tasks file for TimeSource # note requires DNS to resolve ntp server name
+  - name: Get hypercore TimeSource object using REST api # single uuid record.host 
+    scale_computing.hypercore.api:
+      action: get
+      cluster_instance:
+        host: "https://{{ inventory_hostname }}"
+        username: "{{ scale_user }}"
+        password: "{{ scale_pass }}"
+      endpoint: /rest/v1/TimeSource
+    register: TimeSource
+
+  - name: Check if TimeSource is currently defined else set_fact update_ts empty
+    ansible.builtin.set_fact:
+      update_ts: empty
+    when: TimeSource.record[0].host is undefined and timeSource is defined
+
+  - name: Set currently set TimeSource as update_ts fact
+    ansible.builtin.set_fact:
+      update_ts: "{{ TimeSource.record[0].host }}"
+    when: TimeSource.record[0].host is defined and timeSource is defined
+
+  - name: Output TimeSource variables for debug
+    debug:
+     msg: "{{ inventory_hostname }} TimeSource will be updated IF {{ update_ts }} does not match inventory policy {{ timeSource }}"
+    when: update_ts is defined
+
+  - name: Post to update TimeSource if update_ts true
+    scale_computing.hypercore.api:
+      action: post  # or patch? post works - but could patch TimeSource_guid
+      cluster_instance:
+        host: "https://{{ inventory_hostname }}"
+        username: "{{ scale_user }}"
+        password: "{{ scale_pass }}"
+      endpoint: /rest/v1/TimeSource
+      data:
+        host: "{{ timeSource }}"
+    when: ( update_ts == "empty" or update_ts != timeSource ) and timeSource is defined

@@ -7,5 +7,4 @@ important_vms: |  # list of important vms that should be running (in addition to
   - acronisAppliance
   - rh85-ansible
   - aws-storage-gateway
-  - milestone-ny
 support_tunnel: 3270

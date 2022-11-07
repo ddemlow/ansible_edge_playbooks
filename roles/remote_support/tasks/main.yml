@@ -45,8 +45,6 @@
     when: support_tunnel != false and ( rs_status.content | from_json) ['tunnelOpen'] != support_tunnel
     changed_when: support_tunnel != false and ( rs_status.content | from_json) ['tunnelOpen'] != support_tunnel
 
-#TODO - need confirmation on open = for example - conflicting ports will not allow to open
-
   - name: Check remote support status again 
     uri:  
       url: http://{{ansible_host}}/support-api/check

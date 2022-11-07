@@ -1,0 +1,38 @@
+---
+# tasks file for timeZone
+  - name: Get hypercore Timezone object using REST api # single uuid record.timeZone 
+    scale_computing.hypercore.api:
+      action: get
+      cluster_instance:
+        host: "https://{{ inventory_hostname }}"
+        username: "{{ scale_user }}"
+        password: "{{ scale_pass }}"
+      endpoint: /rest/v1/TimeZone
+    register: timezone
+
+  - name: Check if timezone is currently else set_fact update_tz empty
+    ansible.builtin.set_fact:
+      update_tz: empty
+    when: timezone.record[0].timeZone is undefined and timeZone is defined
+
+  - name: Set currently set timezone as update_tz fact
+    ansible.builtin.set_fact:
+      update_tz: "{{ timezone.record[0].timeZone }}"
+    when: timezone.record[0].timeZone is defined and timeZone is defined
+
+  # - name: Output timezone variables for debug
+  #   debug:
+  #    msg: "{{ inventory_hostname }} timezone will be updated IF {{ update_tz }} does not match inventory policy {{ timeZone }}"
+  #   when: update_tz is defined
+
+  - name: Post to update TimeZone if update_tz true
+    scale_computing.hypercore.api:
+      action: post  # or patch? post works - but could patch timezone_guid
+      cluster_instance:
+        host: "https://{{ inventory_hostname }}"
+        username: "{{ scale_user }}"
+        password: "{{ scale_pass }}"
+      endpoint: /rest/v1/TimeZone
+      data:
+        timeZone: "{{ timeZone }}"
+    when: ( update_tz == "empty" or update_tz != timeZone ) and timzZone is defined

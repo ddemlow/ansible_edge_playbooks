@@ -5,3 +5,4 @@
             smbusername: remotedc;administrator
             smbpassword: Scale2010
             syslog_ip: '10.6.42.4'
+            timeZone: America/Indianapolis

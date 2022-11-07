@@ -12,3 +12,4 @@
             smbpath: /azure-sync/ubuntu20_04-cloud-init
             smbusername: remotedc;administrator
             smbpassword: Scale2010
+            timeZone: America/Indiana/Indianapolis

@@ -1,5 +1,6 @@
 ---
-# tasks file for syslog_config
+# tasks file for syslog_config - look to see if syslog_ip already defined in any syslog UUID - add each to variable - if not found create new entry
+# ignore other existing entries whether dup or different - could be extended to remove others - will leave for future module
   - name: Get current AlertSyslogTarget
     scale_computing.hypercore.api:
       action: get
@@ -10,18 +11,54 @@
       endpoint: /rest/v1/AlertSyslogTarget
     register: syslog
 
-  - name: Post to create AlertSyslogTarget if desired is not last entry
+  - name: Clear syslog_uuid # clear array before loop to populate
+    ansible.builtin.set_fact:
+      syslog_uuid: []   
+
+  - name: Loop to Check if syslog_uuid contains syslog_ip from inventory in ANY syslog_uuid entry - if it is add to syslog_uuid #note duplicate entries are possible
+    ansible.builtin.set_fact:
+      syslog_uuid: "{{ syslog_uuid + ([{'uuid':item.uuid | trim, 'host':item.host, 'port':item.port, 'protocol':item.protocol  }]) }}" 
+    when: item.host | trim == syslog_ip
+    loop: "{{ syslog.record | from_yaml | list }}"
+    loop_control:
+      loop_var: item
+    ignore_errors: false
+#TODO - Would be easy to reverse above task to track and later remove non matching syslog entries
+
+  - name: Syslog set - count duplicate and non-matching entries 
+    ansible.builtin.debug:
+      msg: Desired syslog_ip is already set - {{syslog_ip}} (found in {{syslog_uuid | length}} of {{syslog.record | length }} entries) 
+    when: syslog_uuid != []
+    tags:
+      - checkversion
+
+  - name: No existing syslog_uuid for host - will create
+    ansible.builtin.debug:
+      msg: ready to create new syslog entry for {{syslog_ip}} (found in {{syslog_uuid | length}} of {{syslog.record | length }} entries) 
+    when: syslog_uuid == []
+    tags:
+      - checkversion
+
+  - name: Post to create new AlertSyslogTarget 
     scale_computing.hypercore.api:
-      action: post
       cluster_instance:
         host: "https://{{ inventory_hostname }}"
         username: "{{ scale_user }}"
         password: "{{ scale_pass }}"
+      action: post
       endpoint: /rest/v1/AlertSyslogTarget
       data:
         host: "{{ syslog_ip }}"
-    when:  ( syslog.record [syslog.record | length -1].host != syslog_ip   
-           or syslog.record is undefined )
-           and syslog_ip is defined  #skip if no desired syslog_ip is set for this cluster in inventory 
+    when: syslog_uuid == [] and syslog_ip is defined # skip if no desired syslog_ip is set for this cluster in inventory
 
-
+  # - name: Post to update AlertSyslogTarget 
+  #   scale_computing.hypercore.api:
+  #     cluster_instance:
+  #       host: "https://{{ inventory_hostname }}"
+  #       username: "{{ scale_user }}"
+  #       password: "{{ scale_pass }}"
+  #     action: post
+  #     endpoint: /rest/v1/AlertSyslogTarget/{{syslog_uuid[-1].uuid }} #will update LAST uuid if more than one TODO
+  #     data:
+  #       host: "{{ syslog_ip }}"
+  #   when: syslog_uuid[-1].host | default(omit) != syslog_ip # and syslog_ip is defined # will update UUID if different syslog IP - works for one entry - skip if no desired syslog_ip is set for this cluster in inventory 
