@@ -2,10 +2,7 @@
   hosts: edge #use ansible-playbook -l group to limit application to specific groups
   connection: local
   strategy: host_pinned #free  #allows each cluster to start next task before all clusters have finished current task
-  environment:
-    SC_HOST: "https://{{inventory_hostname}}"
-    SC_USERNAME: "admin" #override inventory credentials since ansible user may not yet exist
-    SC_PASSWORD: "admin"   
+
 
   tasks:
   - name: get cluster roles in order to find desired role UUID

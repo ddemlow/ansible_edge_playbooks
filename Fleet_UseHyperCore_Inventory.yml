@@ -4,10 +4,7 @@
   connection: ansible.builtin.local
   gather_facts: false
   strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
-  environment:
-    SC_HOST: "https://{{ inventory_hostname }}"
-    SC_USERNAME: "{{ scale_user }}"
-    SC_PASSWORD: "{{ scale_pass }}"
+
 
   tasks:
   - name:  execute ansible-playbook against each cluster / change environment - get local hypercore VM inventory 

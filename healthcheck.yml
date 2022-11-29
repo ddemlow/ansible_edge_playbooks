@@ -5,16 +5,12 @@
   gather_facts: false
   ignore_errors: yes # chesks will log failure if out of compliance
   #strategy: host_pinned # use default - want these tasks to all report in block together
-  environment:
-    SC_HOST: "https://{{ inventory_hostname }}"
-    SC_USERNAME: "{{ scale_user }}"
-    SC_PASSWORD: "{{ scale_pass }}"
 
   roles:
-    - hypercore_version # checks and corrects hypercore version vs. desired
     - check-ide # check for vms with ide disks
     - syslog_config #check that desired syslog server is (last) in list - and correct
     - schedules # check the each cluster has expected snapshot schedules created correctly / not modifiedi
     - vm_cleanup # cleans up list of formerly used VMs
     - timeZone # checks cluster timezone vs. inventory timeZone variable
     - timeSource # checks cluster timeesource vs. inventory timeSource variable  
+    - hypercore_version # checks and corrects hypercore version vs. desired
