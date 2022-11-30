@@ -1,35 +1,34 @@
-- name: create ansible user with admin role using hypercore.api module
-  hosts: edge #use ansible-playbook -l group to limit application to specific groups
+- name: Create ansible user with admin role using hypercore.api module
+  hosts: edge # use ansible-playbook -l group to limit application to specific groups
   connection: local
-  strategy: host_pinned #free  #allows each cluster to start next task before all clusters have finished current task
-
+  strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
 
   tasks:
-  - name: get cluster roles in order to find desired role UUID
+  - name: Get cluster roles in order to find desired role UUID
     scale_computing.hypercore.api:
       action: get
       endpoint: /rest/v1/Role
     register: roles
 
-  - name: set uuid for cluster admin role  
+  - name: Set uuid for cluster admin role
     ansible.builtin.set_fact:
       admin_role_uuid: "{{ item.uuid }}"
     when: item.name == "Admin"
     loop: '{{ roles.record | from_yaml_all | list }}'
-    
-  - name: get users to determine if ansible user already exists
+
+  - name: Get users to determine if ansible user already exists
     scale_computing.hypercore.api:
       action: get
       endpoint: /rest/v1/User
-    register: User
+    register: hcuser
 
-  - name: get uuid ansible user if exist 
+  - name: Get uuid ansible user if exist
     ansible.builtin.set_fact:
-      ansible_user_uuid: "{{ item.uuid }}" #will be not defined if ansible user doesn't exist
-    when: item.username == "ansible"  
-    loop: '{{ User.record | from_yaml_all | list }}'
+      ansible_user_uuid: "{{ item.uuid }}" # will be not defined if ansible user doesn't exist
+    when: item.username == "ansible"
+    loop: '{{ hcuser.record | from_yaml_all | list }}'
 
-  - name: create ansible user with admin role #will be skipped if user already exists
+  - name: Create ansible user with admin role # will be skipped if user already exists
     scale_computing.hypercore.api:
       action: post
       endpoint: /rest/v1/User
@@ -37,9 +36,5 @@
         username: "ansible"
         password: "ansible"
         fullName: "Account for running Ansible playbooks with admin role"
-        roleUUIDs: ["{{admin_role_uuid}}",]
+        roleUUIDs: ["{{ admin_role_uuid }}"]
     when: ansible_user_uuid is not defined
-  
-
-
-

@@ -1,9 +1,9 @@
 ---
 - name: HyperCore Best Practices healthcheck
-  hosts: edge # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
+  hosts: all # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
   connection: ansible.builtin.local
   gather_facts: false
-  ignore_errors: yes # chesks will log failure if out of compliance
+  #ignore_errors: yes # chesks will log failure if out of compliance
   #strategy: host_pinned # use default - want these tasks to all report in block together
 
   roles:
