@@ -1,13 +1,9 @@
 ---
-- name: Check clusters for important_vms list from cluster_inventory that should be running - and start in priority order 
+- name: Check clusters for important_vms list from cluster_inventory that should be running - and start in listed (priority) order 
   hosts: edge # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
   connection: ansible.builtin.local
   gather_facts: false
   strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
-  environment:
-    SC_HOST: "https://{{ inventory_hostname }}"
-    SC_USERNAME: "{{ scale_user }}"
-    SC_PASSWORD: "{{ scale_pass }}"
 
   tasks:
     - name: Start important_vms defined in cluster_inventory

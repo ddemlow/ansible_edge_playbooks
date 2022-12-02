@@ -2,18 +2,18 @@
 - name: Simple vm deploy #edit vmname variable - use -l filter to specify cluster vs. full inventory
   hosts: edge
   vars:
-    - vmname: semaphore2
+    - vmname: ubuntu20-ansiblenav
 #  connection: localhost
   gather_facts: false
   strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
-  environment:
-    SC_HOST: "https://{{ inventory_hostname }}"
-    SC_USERNAME: "admin"
-    SC_PASSWORD: "admin"
 
   tasks:
     - name: Ubuntu20_04 template - Ubuntu 20.04 - import if not present # used to clone and cloud-init target VM
       scale_computing.hypercore.vm_import:
+        cluster_instance:
+          host: "https://{{inventory_hostname }}"
+          username: "{{scale_user}}"
+          password: "{{scale_pass}}"
         vm_name: ubuntu20_04
         http_uri:
           path: 'https://github.com/ddemlow/RestAPIExamples/raw/master/ubuntu20_04-cloud-init'
@@ -25,6 +25,10 @@
 
     - name: Clone and configure ad hoc "{{ vmname }}"
       scale_computing.hypercore.vm_clone:
+        cluster_instance:
+          host: "https://{{inventory_hostname }}"
+          username: "{{scale_user}}"
+          password: "{{scale_pass}}"
         vm_name: "{{vmname}}"
         source_vm_name: ubuntu20_04
         cloud_init:
@@ -35,15 +39,15 @@
             ssh_pwauth: True
             apt: {sources: {docker.list: {source: 'deb [arch=amd64] https://download.docker.com/linux/ubuntu $RELEASE stable', keyid: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88}}}
             packages: [qemu-guest-agent, docker-ce, docker-ce-cli, docker-compose, ansible, git, unzip]
-            snap:
-              commands:
-                00: snap install semaphore
-                01: snap install edgexfoundry
-                02: snap install edgex-ui 
-                03: snap install edgex-cli
-                04: snap install edgex-device-camera
-                05: snap install edgex-device-mqtt
-                06: snap install edgex-device-rest 
+            # snap:
+            #   commands:
+            #     00: snap install semaphore
+            #     01: snap install edgexfoundry
+            #     02: snap install edgex-ui 
+            #     03: snap install edgex-cli
+            #     04: snap install edgex-device-camera
+            #     05: snap install edgex-device-mqtt
+            #     06: snap install edgex-device-rest 
 
             bootcmd:
               - [ sh, -c, 'sudo echo GRUB_CMDLINE_LINUX="nomodeset" >> /etc/default/grub' ]
@@ -65,6 +69,10 @@
 
     - name: Disk desired configuration for "{{ vmname }}"
       scale_computing.hypercore.vm_disk:
+        cluster_instance:
+          host: "https://{{inventory_hostname }}"
+          username: "{{scale_user}}"
+          password: "{{scale_pass}}"
         vm_name: "{{ vmname }}"
         items:
           - disk_slot: 0
@@ -74,6 +82,10 @@
 
     - name: Vm desired configuration and state for "{{ vmname }}"
       scale_computing.hypercore.vm_params:
+        cluster_instance:
+          host: "https://{{inventory_hostname }}"
+          username: "{{scale_user}}"
+          password: "{{scale_pass}}"
         vm_name: "{{vmname}}"
         memory: "{{ '4 GB' | human_to_bytes }}"
         description:
