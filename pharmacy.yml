@@ -1,6 +1,6 @@
 ---
 - name: Retail-edge Pharmacy deployment playbook
-  hosts: edge # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
+  hosts: all # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
   connection: ansible.builtin.local
   gather_facts: false
   strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
