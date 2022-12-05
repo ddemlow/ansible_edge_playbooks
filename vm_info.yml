@@ -1,0 +1,61 @@
+---
+- name: Get vm info 
+  hosts: all # use ansible-playbook -l group to limit application to specific groups
+  connection: ansible.builtin.local
+  gather_facts: False
+  #strategy: host_pinned #free  #allows each cluster to start next task before all clusters have finished current task
+  vars:
+    scale_pass: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          66623962343737376564323866333234666665303063383035346538386363353935353432323138
+          6265313638376364313535336266643265363935653933610a663565373263616534323933333965
+          36663732633564316661363830393630306366636439333333383439653939303334396635616630
+          3139363936346637630a653334313837616565313336303530623166353338383765316531303236
+          3137
+  environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user }}"
+    SC_PASSWORD: "{{ scale_pass }}"
+  
+  tasks:
+  - name: get vm info
+    scale_computing.hypercore.vm_info:
+      cluster_instance:
+        host: "https://{{inventory_hostname }}"
+        username: "{{scale_user}}"
+        password: "{{scale_pass}}"
+    register: vm_info
+
+  - name: show vm_info
+    debug:
+      var: vm_info
+
+  - name: Clear vm_schema # clear array before loop to populate
+    ansible.builtin.set_fact:
+      vm_schema: []   
+
+  - name: debug show
+    ansible.builtin.set_fact:
+      vm_name: '{{ item.vm_name }}'
+      vm_schema: "{{ vm_schema + ([{'vm_name':item.vm_name , 'tags':item.tags }]) }}"
+      vm_tags: '{{ item.tags }}'
+    loop: '{{ vm_info.records }}'
+
+  - name: show vm data
+    debug:
+     var: vm_schema
+
+  - name: show vm data
+    debug:
+     var: vm_name
+     var: vm_tags
+
+
+  - name: show vm_schema
+    debug:
+     msg: "{{ vm_schema[1].vm_name }}" 
+     msg:  "{{ vm_schema[1].tags }}"
+
+  - name: show vm_schema
+    debug:
+     msg:  "{{ vm_schema[1].tags }}"

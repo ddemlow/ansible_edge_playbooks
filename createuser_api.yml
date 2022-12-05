@@ -1,7 +1,11 @@
 - name: Create ansible user with admin role using hypercore.api module
   hosts: edge # use ansible-playbook -l group to limit application to specific groups
   connection: local
-  strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
+#  strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
+  environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_admin_user }}"
+    SC_PASSWORD: "{{ scale_admin_pass }}"
 
   tasks:
   - name: Get cluster roles in order to find desired role UUID

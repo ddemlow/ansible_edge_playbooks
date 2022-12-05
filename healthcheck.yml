@@ -5,7 +5,11 @@
   gather_facts: false
   #ignore_errors: yes # chesks will log failure if out of compliance
   #strategy: host_pinned # use default - want these tasks to all report in block together
-
+  environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user }}"
+    SC_PASSWORD: "{{ scale_pass }}"
+    
   roles:
     - check-ide # check for vms with ide disks
     - syslog_config #check that desired syslog server is (last) in list - and correct

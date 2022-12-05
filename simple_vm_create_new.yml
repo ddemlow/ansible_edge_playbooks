@@ -6,10 +6,10 @@
   connection: ansible.builtin.local
   gather_facts: false
   strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
-  # environment:  # not needed when getting cluster info from inventory file
-  #   SC_HOST: "https://{{ inventory_hostname }}"
-  #   SC_USERNAME: "admin"
-  #   SC_PASSWORD: "admin"
+  environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user }}"
+    SC_PASSWORD: "{{ scale_pass }}"  
 
   tasks:
   # - name: Create project directory /tmp (if it doesn't exist already)

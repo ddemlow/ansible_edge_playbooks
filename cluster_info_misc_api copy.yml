@@ -1,13 +1,10 @@
 ---
 - name: get cluster info using scale_computing.hypercore.api module
-  hosts: edge # use ansible-playbook -l group to limit application to specific groups
+  hosts: all # use ansible-playbook -l group to limit application to specific groups
   connection: ansible.builtin.local
   gather_facts: False
   #strategy: host_pinned #free  #allows each cluster to start next task before all clusters have finished current task
-  environment:
-    SC_HOST: "https://{{inventory_hostname}}"
-    SC_USERNAME: "{{scale_user}}"
-    SC_PASSWORD: "{{scale_pass}}"   
+
   
   tasks:
   - name: get hypercore cluster object using REST api
@@ -17,7 +14,12 @@
     check_mode: no        
     register: cluster_info
     tags:
-    - checkversion
+    - apioutput
+  - name: debug show
+    ansible.builtin.debug:
+      var: cluster_info 
+    tags:
+    - apioutput
 
   - name: get hypercore node object using REST api
     scale_computing.hypercore.api:
@@ -28,25 +30,17 @@
     tags:
     - checkversion
 
-  # - name: get hypercore Timezone object using REST api
-  #   scale_computing.hypercore.api:
-  #     action: get
-  #     cluster_instance:
-  #       host: "https://{{inventory_hostname }}"
-  #       username: "{{scale_user}}"
-  #       password: "{{scale_pass}}"
-  #     endpoint: /rest/v1/TimeZone
-  #   register: timezone
+  - name: Run timeZone role
+    ansible.builtin.include_role:
+      name: timeZone
+    
+  - name: Run timeSource role
+    ansible.builtin.include_role:
+      name: timeSource
+    tags:
+    - timeSource
 
-  # - name: get hypercore TimeSource object using REST api
-  #   scale_computing.hypercore.api:
-  #     action: get
-  #     cluster_instance:
-  #       host: "https://{{inventory_hostname }}"
-  #       username: "{{scale_user}}"
-  #       password: "{{scale_pass}}"
-  #     endpoint: /rest/v1/TimeSource
-  #   register: timesource
+
 
   # - name: get hypercore Registration object using REST api
   #   scale_computing.hypercore.api:
@@ -58,25 +52,25 @@
   #     endpoint: /rest/v1/Registration
   #   register: Registration   
 
-  # - name: get hypercore OIDC object using REST api
-  #   scale_computing.hypercore.api:
-  #     action: get
-  #     cluster_instance:
-  #       host: "https://{{inventory_hostname }}"
-  #       username: "{{scale_user}}"
-  #       password: "{{scale_pass}}"
-  #     endpoint: /rest/v1/OIDCConfig
-  #   register: OIDCConfig    
+  - name: get hypercore OIDC object using REST api # single uuid record. 
+    scale_computing.hypercore.api:
+      action: get
+      cluster_instance:
+        host: "https://{{inventory_hostname }}"
+        username: "{{scale_user}}"
+        password: "{{scale_pass}}"
+      endpoint: /rest/v1/OIDCConfig
+    register: OIDCConfig    
 
-  # - name: get hypercore DNSConfig object using REST api
-  #   scale_computing.hypercore.api:
-  #     action: get
-  #     cluster_instance:
-  #       host: "https://{{inventory_hostname }}"
-  #       username: "{{scale_user}}"
-  #       password: "{{scale_pass}}"
-  #     endpoint: /rest/v1/DNSConfig
-  #   register: DNSConfig 
+  - name: get hypercore DNSConfig object using REST api # single uuid dnsconfig_guid  - record.searchDomains list record.serverIPs list
+    scale_computing.hypercore.api:
+      action: get
+      cluster_instance:
+        host: "https://{{inventory_hostname }}"
+        username: "{{scale_user}}"
+        password: "{{scale_pass}}"
+      endpoint: /rest/v1/DNSConfig
+    register: DNSConfig 
 
   # - name: get conditions
   #   scale_computing.hypercore.api:
@@ -99,4 +93,15 @@
 
   # - name: output iso_results
   #   ansible.builtin.debug:
-  #     var: iso_results  
+  #     var: iso_results 
+
+
+  # - name: MonitoringConfig #monitoringconfig_guid - have turned it off on all my lab / home clusters 
+  #   scale_computing.hypercore.api:
+  #     action: delete  #delete existing monitoring config
+  #     cluster_instance:
+  #       host: "https://{{ inventory_hostname }}"
+  #       username: "{{scale_user}}"
+  #       password: "{{scale_pass}}"
+  #     endpoint: /rest/v1/MonitoringConfig/monitoringconfig_guid
+  #   register: monitoring

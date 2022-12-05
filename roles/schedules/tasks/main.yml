@@ -3,6 +3,10 @@
 
   - name: Setup standard snapshot schedule 
     scale_computing.hypercore.snapshot_schedule:
+      cluster_instance:
+        host: "https://{{inventory_hostname }}"
+        username: "{{scale_user}}"
+        password: "{{scale_pass}}"   
       name: snap-daily-midnight
       state: present
       recurrences:

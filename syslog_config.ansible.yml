@@ -1,6 +1,11 @@
 - name: Configure AlertSyslogTarget across clusters using syslog_ip variable from inventory file
   hosts: edge
   connection: local
+  environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user }}"
+    SC_PASSWORD: "{{ scale_pass }}"
+      
   roles:
   - syslog_config
 
