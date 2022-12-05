@@ -1,3 +1,5 @@
+# TODO - check for already in process updates
+
 
   - name: Get hypercore cluster info object using REST api
     scale_computing.hypercore.api:
@@ -81,6 +83,17 @@
       - checkversion
 
 #if this far - there is a desired version update available to cluster 
+
+  - name: check update/update_status.json - will report FAILED-RETRYING until update COMPLETE/TERMINATED #this fails when web server / node is rebooted and until becomes undefined - doesn't keep retrying - thus need outer rescue / loop 
+    uri:
+      url: http://{{ansible_host}}/update/update_status.json
+      method: GET
+      return_content: yes
+      status_code: 200
+      body_format: json
+    register: update_status 
+    failed_when:  update_status.json.updateStatus.masterState == "IN PROGRESS" | default(omit) # or update_status.json.updateStatus.masterState == "TERMINATING" | default(omit) 
+
 
   - name: Get all VMs on cluster if SNS to prepare for shutdown
     scale_computing.hypercore.vm_info:
