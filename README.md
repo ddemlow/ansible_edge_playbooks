@@ -1,6 +1,6 @@
 # ansible_edge_playbooks
 
-[Fleet_Config.yml](https://github.com/ddemlow/ansible_edge_playbooks/blob/master/Fleet_HyperCore_Config.yml) is the main playbook that imports other playbooks and roles for edge VM deployment and configuration
+[Fleet_HyperCore_Config.yml](https://github.com/ddemlow/ansible_edge_playbooks/blob/master/Fleet_HyperCore_Config.yml) is the main playbook that imports other playbooks and roles for edge VM deployment and configuration
 
 Individual playbooks and roles exist for each VM to be deployed and configured including an Ubuntu 20.04 cloud image that is used when initially creating each workload VM - pharmacy, pos, and security VMs
 
