@@ -7,7 +7,7 @@
             scale_user: admin
             scale_pass: admin
             hypercore_role: test
-            hypercore_desired_version: 9.2.7.210137
+            hypercore_desired_version: 9.2.8.210517
             smbserver: 10.100.20.175
             smbpath: /azure-sync/ubuntu20_04-cloud-init
             smbusername: remotedc;administrator
