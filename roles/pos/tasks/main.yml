@@ -1,5 +1,12 @@
 ---
 # tasks file for pos
+# as of 12/2022 - deploys single node k3s cluster - clones a demo repo and applys deployment (exposed via nodeport)
+
+  # - name: remove existing site POS VM #comment out when not needed ... can be used to remove and re-create all existing POS vms
+  #   scale_computing.hypercore.vm:
+  #     vm_name: "pos-{{ site_name }}"
+  #     state: absent
+
   - name: Clone pos vm for store - if not present - provide cloud-init config
     scale_computing.hypercore.vm_clone:
       vm_name: "pos-{{ site_name }}"
@@ -13,8 +20,10 @@
           ssh_authorized_keys: # Add your ssh public key for publickey authentication
               - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDihWWhjoPj8KVLtdLDwNJQ71zi9An0iUFjefRWu2Eju ddemlow@scalecomputing.com
           disable_root: false # allow ssh root login
+          ssh_pwauth: True
+          ssh_import_id:  gh:ddemlow          
           apt: {sources: {docker.list: {source: 'deb [arch=amd64] https://download.docker.com/linux/ubuntu $RELEASE stable', keyid: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88}}}
-          packages: [qemu-guest-agent, docker-ce, docker-ce-cli, docker-compose, unzip]          
+          packages: [qemu-guest-agent, git, docker-ce, docker-ce-cli, docker-compose, unzip]          
           bootcmd:
             - [ sh, -c, 'sudo echo GRUB_CMDLINE_LINUX="nomodeset" >> /etc/default/grub' ]
             - [ sh, -c, 'sudo echo GRUB_GFXPAYLOAD_LINUX="1024x768" >> /etc/default/grub' ]
@@ -24,6 +33,10 @@
             - [ sh, -c,  'sleep 5 && systemctl restart qemu-guest-agent || true ' ]
           runcmd:
             - [ systemctl, restart, --no-block, qemu-guest-agent ]
+            - 'curl -sfL "https://get.k3s.io" | K3S_TOKEN=Scale2010 K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="server --cluster-init" sh -'
+            - 'git clone https://github.com/microservices-demo/microservices-demo.git'
+            - 'kubectl create namespace sock-shop'
+            - 'kubectl apply -f /microservices-demo/deploy/kubernetes/complete-demo.yaml'
         meta_data: |
           dsmode: local
           # network-interfaces: |
@@ -53,8 +66,8 @@
   - name: Pos VM desired configuration and state
     scale_computing.hypercore.vm_params:
       vm_name: "pos-{{ site_name }}"
-      memory: "{{ '1 GB' | human_to_bytes }}"
-      description: "pos vm for {{ site_name }}"
+      memory: "{{ '4 GB' | human_to_bytes }}"
+      description: "pos vm for {{ site_name }}  - port 300001 "
       snapshot_schedule: snap-daily-midnight
       tags:
         - demo
