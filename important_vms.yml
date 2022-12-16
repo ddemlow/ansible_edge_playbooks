@@ -8,8 +8,24 @@
     SC_HOST: "https://{{ inventory_hostname }}"
     SC_USERNAME: "{{ scale_user }}"
     SC_PASSWORD: "{{ scale_pass }}"
+  vars:
+    important_vms: |  # list of important vms that should be running (in addition to ansible deployed / managed vms) - also controls start order via playbook
+      - github-runner
+      - IEAM-westfield
+      - acronisAgent
+      - adfs-sso
+    unimportant_vms: # list of unimportant VM's to stop 
+      - junk
     
   tasks:
+    - name: Stop unimportant_vms defined in cluster_inventory
+      scale_computing.hypercore.vm_params:
+        power_state: stop
+        vm_name: "{{ item }}"
+      loop:  
+        "{{ unimportant_vms }}"
+      when: unimportant_vms is defined # todo - could also only do this if node is down or condition set?
+
     - name: Start important_vms defined in cluster_inventory
       scale_computing.hypercore.vm_params:
         power_state: start
