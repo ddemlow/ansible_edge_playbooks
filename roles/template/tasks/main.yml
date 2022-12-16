@@ -1,24 +1,24 @@
 ---
 # tasks file for template
 
-    - name: Ubuntu20_04 template - Ubuntu 20.04 - https import if not present # used to clone and cloud-init target VM
-      scale_computing.hypercore.vm_import:
-        cluster_instance:
-          host: "https://{{inventory_hostname }}"
-          username: "{{scale_user}}"
-          password: "{{scale_pass}}"
-        vm_name: ubuntu20_04
-        http_uri:
-          path: 'https://github.com/ddemlow/RestAPIExamples/raw/master/ubuntu20_04-cloud-init'
-          file_name: ubuntu20_04-cloud-init.xml
+  - name: Ubuntu20_04 template - Ubuntu 20.04 - https import if not present # used to clone and cloud-init target VM
+    scale_computing.hypercore.vm_import:
+      cluster_instance:
+        host: "https://{{inventory_hostname }}"
+        username: "{{scale_user}}"
+        password: "{{scale_pass}}"
+      vm_name: ubuntu20_04
+      http_uri:
+        path: 'https://github.com/ddemlow/RestAPIExamples/raw/master/ubuntu20_04-cloud-init'
+        file_name: ubuntu20_04-cloud-init.xml
 #      until: ubuntu20_04.msg is not search("problem")
-      until: ubuntu20_04.msg is search("import complete")
-      retries: 5
-      delay: 5
-      ignore_errors: false  # import errors are not uncommon depdending on network connection to smb / https source
-      register: ubuntu20_04
-      tags:    # tags - allow selective task execution with -t at command line
-        - template
+    until: (ubuntu20_04.msg is search("import complete"))  or (ubuntu20_04.msg is search("already exists"))
+    retries: 5
+    delay: 5
+    ignore_errors: false  # import errors are not uncommon depdending on network connection to smb / https source
+    register: ubuntu20_04
+    tags:    # tags - allow selective task execution with -t at command line
+      - template
 
 
   # - name: Ubuntu20_04 template - Ubuntu 20.04 - SMB import if not present
