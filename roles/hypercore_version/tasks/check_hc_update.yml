@@ -21,7 +21,7 @@
     until:  update_status.json.updateStatus.masterState == "COMPLETE" | default(omit) or update_status.json.updateStatus.masterState == "TERMINATING" | default(omit) 
     retries: 120
     delay: 10
-    ignore_errors: false
+    ignore_unreachable: true # need to test that this fails but allows rescue below execute
 
   rescue:
     - fail:
