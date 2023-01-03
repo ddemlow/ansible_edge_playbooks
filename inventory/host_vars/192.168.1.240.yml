@@ -10,3 +10,4 @@ important_vms: |  # list of important vms that should be running (in addition to
   - acronisAgent
   - adfs-sso
 support_tunnel: 3271
+hypercore_cluster_name: "pmedge-3272-dd"

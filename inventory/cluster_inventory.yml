@@ -6,7 +6,6 @@ all:
           hosts:
             "szt15b-01.lab.local": 
             "dzt09a-01.lab.local":
-            "10.100.13.37":
         region1:  #production site clusters in region 1 
           children:
             corporate: #corporate owned stores

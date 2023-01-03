@@ -1,6 +1,6 @@
 ---
 - name: Configure VM guest OS of "storeapps" group directly ansible connection using HyperCore dynamic inventory
-  hosts: storeapps
+  hosts: pharmacy
   gather_facts: true
   become: yes
   strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
@@ -22,13 +22,13 @@
     #   ansible.builtin.debug:
     #     name: "{{ inventory_hostname }}"
 
-    - name:  remove nginx from guest OS - if present
-      ansible.builtin.package:
-        name: nginx
-        state: absent 
+    # - name:  remove nginx from guest OS - if present
+    #   ansible.builtin.package:
+    #     name: nginx
+    #     state: absent 
 
-    - name: Upgrade all apt packages
-      apt: upgrade=dist force_apt_get=yes
+    # - name: Upgrade all apt packages
+    #   apt: upgrade=dist force_apt_get=yes
 
 
     # - name: Enable nginx on guest OS
@@ -61,6 +61,9 @@
           # container_prefix: cmsapp
         #path: /opt
         #restart_policy: on-failure
+
+- name: "Onboard Linux Servers to Azure Arc-enabled servers with Public endpoint connectivity" hosts: all vars: azure: service_principal_id: '3933c163-3dcc-4248-83fc-b1cbe2ee6865' service_principal_secret: 'INSERT-SERVICE-PRINCIPAL-SECRET' resource_group: 'AzureArcTest' tenant_id: '76d4c62a-a9ca-4dc2-9187-e2cc4d9abe7f' subscription_id: 'eb08cfa9-a0c3-4c8e-a834-b98dc83dd1e6' location: 'eastus' tasks: - name: {"checkIfdownloaded"} stat: path: /usr/bin/azcmagent get_attributes: False get_checksum: False register: azcmagent_lnx_downloaded when: ansible_system == 'Linux' - name: {"downloadConnectedMachineAgentLinuxANS"} become: yes get_url: url: https://aka.ms/azcmagent dest: ~/install_linux_azcmagent.sh mode: '700' when: (ansible_system == 'Linux') and (azcmagent_lnx_downloaded.stat.exists == false) - name: {"installConnectedMachineAgent"} become: yes shell: bash ~/install_linux_azcmagent.sh when: (ansible_system == 'Linux') and (not azcmagent_lnx_downloaded.stat.exists) - name: {"checkConnection"} become: true command: cmd: azcmagent check register: azcmagent_lnx_connected ignore_errors: yes when: ansible_system == 'Linux' failed_when: (azcmagent_lnx_connected.rc not in [ 0, 16 ]) changed_when: False - name: {"connectToAzureArc"} become: yes shell: azcmagent connect --service-principal-id "{{ azure.service_principal_id }}" --service-principal-secret "{{ azure.service_principal_secret }}" --resource-group "{{ azure.resource_group }}" --tenant-id "{{ azure.tenant_id }}" --location "{{ azure.location }}" --subscription-id "{{ azure.subscription_id }}" --tags "Platform=HyperCore" when: (ansible_system == 'Linux') and (azcmagent_lnx_connected.rc is defined and azcmagent_lnx_connected.rc != 0)
+
 
 
     # - name: Start application

@@ -8,3 +8,4 @@ important_vms: |  # list of important vms that should be running (in addition to
   - rh85-ansible
   - aws-storage-gateway
 support_tunnel: 3270
+hypercore_cluster_name: "newyork-3270-dd"

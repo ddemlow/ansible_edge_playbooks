@@ -9,5 +9,6 @@
             hypercore_role: production
             smbserver: 192.168.1.248
             smbpath: /azure-sync/ubuntu20_04-cloud-init
+            winsmbpath: /azure-sync/win10IoT-uefi-cloudbase
             smbusername: pm-edge;administrator
             smbpassword: Scale2020!

@@ -2,6 +2,11 @@
   hosts: edge
   connection: ansible.builtin.local
   gather_facts: false
+  environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user }}"
+    SC_PASSWORD: "{{ scale_pass }}"
+    
   tasks:
   # - name: Get cluster VM info
   #   scale_computing.hypercore.vm_info:
@@ -31,7 +36,10 @@
       - "demo-{{ site_name }}"
       - "pharmacy-{{ site_name }}"
       - "security-{{ site_name }}"
-#      - "securityCONTRACTOR-{{ site_name }}"
+      - "iot-{{ site_name }}"
+      - "securityCONTRACTOR-{{ site_name }}"
+#      - "ubuntu20_04"
+#      - "win10IoT-uefi-cloudbase"
 
   - name: Cleanup old snapshot schedule
     scale_computing.hypercore.snapshot_schedule:

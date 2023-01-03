@@ -12,3 +12,6 @@
   tasks:
   - name:  execute ansible-playbook against each cluster / change environment - get local hypercore VM inventory 
     ansible.builtin.command: ansible-playbook -i ./inventory/hypercore_vm_inventory.yml using_hypercore_inventory.yml  #uses hypercore inventory plugin for each cluster (based on environment)
+    ansible.builtin.command: ansible-playbook -i ./inventory/hypercore_vm_inventory.yml AzureArcLinuxOnboard.yml  #uses hypercore inventory plugin for each cluster (based on environment)
+    ansible.builtin.command: ansible-playbook -i ./inventory/hypercore_vm_inventory_windows.yml windows_iot_config.yml  #uses hypercore inventory plugin for each cluster (based on environment)
+  
