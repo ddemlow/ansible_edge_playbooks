@@ -1,0 +1,38 @@
+---
+# tasks file for ClusterName 
+  - name: Get hypercore ClusterName object using REST api # single uuid record.host 
+    scale_computing.hypercore.api:
+      action: get
+      cluster_instance:
+        host: "https://{{ inventory_hostname }}"
+        username: "{{ scale_user }}"
+        password: "{{ scale_pass }}"
+      endpoint: /rest/v1/Cluster
+    register: ClusterName
+
+  - name: Check if ClusterName is currently defined else set_fact update_ts empty
+    ansible.builtin.set_fact:
+      update_ts: empty
+    when: ClusterName.record[0].clusterName is undefined and hypercore_cluster_name is defined
+
+  - name: Set desired  ClusterName as update_cn fact
+    ansible.builtin.set_fact:
+      update_cn: "{{ hypercore_cluster_name }}"
+    when: ClusterName.record[0].clusterName is defined and hypercore_cluster_name is defined
+
+  - name: Output ClusterName variables for debug
+    debug:
+     msg: "{{ inventory_hostname }} ClusterName will be updated IF {{ update_cn }} does not match inventory policy - current {{ ClusterName.record[0].clusterName }}"
+    when: update_cn is defined
+
+  - name: Post to update ClusterName if update_cn true
+    scale_computing.hypercore.api:
+      action: patch  # or patch? post works - but could patch ClusterName_guid
+      cluster_instance:
+        host: "https://{{ inventory_hostname }}"
+        username: "{{ scale_user }}"
+        password: "{{ scale_pass }}"
+      endpoint: /rest/v1/Cluster/{{ ClusterName.record[0].uuid }}/  #need cluster specific uuid
+      data:
+        clusterName: "{{ hypercore_cluster_name }}"
+    when: ( update_cn == "empty" ) or ( update_cn != ClusterName.record[0].clusterName )

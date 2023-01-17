@@ -1,0 +1,14 @@
+---
+- name: Manage clustername across HyperCore fleet
+  hosts: edge # use ansible-playbook -l group to limit application to specific groups
+  connection: ansible.builtin.local
+  gather_facts: False
+  ignore_errors: yes # chesks will log failure if out of compliance
+  #strategy: host_pinned #free  #allows each cluster to start next task before all clusters have finished current task
+  environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user }}"
+    SC_PASSWORD: "{{ scale_pass }}"
+  
+  roles:
+  - clusterName
