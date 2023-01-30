@@ -49,11 +49,11 @@
         - disk_slot: 0
           type: virtio_disk
           size: "{{ '50 GB' | human_to_bytes }}" #50GB | human to bytes results in 53.7GB VSD in Hypercore
-          tiering_priority_factor: 3
+#          tiering_priority_factor: 3
         - disk_slot: 1
           type: virtio_disk
           size: "{{ 200 * 1000 * 1000 * 1000 }}" # This calculation results in 200GB VSD in Hypercore
-          tiering_priority_factor: 1
+#          tiering_priority_factor: 1
       state: present
     tags:    # tags - allow selective task execution with -t at command line
       - security
@@ -147,11 +147,11 @@
         - disk_slot: 0
           type: virtio_disk
           size: "{{ '50 GB' | human_to_bytes }}" #50GB | human to bytes results in 53.7GB VSD in Hypercore
-          tiering_priority_factor: 3
+#          tiering_priority_factor: 3
         - disk_slot: 1
           type: virtio_disk
           size: "{{ 200 * 1000 * 1000 * 1000 }}" # This calculation results in 200GB VSD in Hypercore
-          tiering_priority_factor: 1  # as of 10/26 - this is taking 2 passes to set
+#          tiering_priority_factor: 1  # as of 10/26 - this is taking 2 passes to set
       state: present
     tags:    # tags - allow selective task execution with -t at command line
       - security

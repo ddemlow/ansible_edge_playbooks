@@ -1,0 +1,127 @@
+---
+- name: Configure Windows IoT edge host - Rename Host and Reboot
+  hosts: windowsiot
+  become: false
+  gather_facts: false
+  strategy: host_pinned
+  vars:
+    ansible_connection: winrm
+    ansible_winrm_transport: basic
+    ansible_winrm_server_cert_validation: ignore
+    ansible_password: Scale2010! 
+    ansible_user: user 
+
+  tasks:
+  - name: wait for winrm connection
+    ansible.builtin.wait_for_connection:
+      delay: 180
+      timeout: 600
+      sleep: 30
+      connect_timeout: 20
+      
+
+  - name: Gather facts for first time
+    ansible.builtin.setup:
+
+  - name: Change the hostname to "{{ inventory_hostname }}"
+    ansible.windows.win_hostname:
+      name: "{{ inventory_hostname }}"
+    register: restart
+
+  - name: Reboot host if required
+    win_reboot:
+    when: restart.reboot_required
+    ignore_errors: true
+
+
+#archive of other windows ansible tasks
+    # - name: test ping
+    #   ansible.windows.win_ping:
+
+    # reboot moved until later to avoid error 
+    # - name: Reboot
+    #   ansible.windows.win_reboot:
+    #     reboot_timeout: 1800
+    #     pre_reboot_delay: 10
+    #     post_reboot_delay: 30
+    #   when: res.reboot_required
+    #   ignore_errors: true
+
+    # - name: Install all critical and security updates
+    #   ansible.windows.win_updates:
+    #     category_names:
+    #     - CriticalUpdates
+    #     - SecurityUpdates
+    #     state: installed
+    #   ignore_errors: true
+    #   register: update_result
+
+    # - name: Reboot host if required
+    #   win_reboot:
+    #   when: update_result.reboot_required
+
+
+    # - name: Get whoami information
+    #   ansible.windows.win_whoami:
+
+#     - name: Create local group to contain new users
+#       win_group:
+#         name: LocalGroup
+#         description: Allow access to C:\Development folder
+
+#     - name: Create local user
+#       win_user:
+#         name: '{{ item.name }}'
+#         password: '{{ item.password }}'
+#         groups: LocalGroup
+# #        update_password: false
+#         password_never_expires: true
+#       loop:
+#       - name: User1
+#         password: Password1
+#       - name: User2
+#         password: Password2
+
+
+    # - name: Enable hyper-v optional feature
+    #   ansible.windows.win_optional_feature:
+    #     name: Microsoft-Hyper-V
+    #     state: absent   #note present will hang non vtpm based vms currently
+    #     include_parent: true
+    #   register: features
+
+    # - name: Reboot if managing features requires it
+    #   ansible.windows.win_reboot:
+    #     post_reboot_delay: 180
+    #     pre_reboot_delay: 10
+    #   when: features.reboot_required
+
+    # - name: Run an executable and send data to the stdin for the executable
+    #     ansible.windows.win_command: powershell.exe -
+    #     args:
+    #       stdin: Write-Host test
+
+    # - name: Run AKSEdgeDeployment PowerShell script
+    #   ansible.windows.win_powershell:
+    #     script: |
+    #       New-AksEdgeDeployment -JsonConfigFilePath C:\Users\user\Documents\AKS-Edge-main\tools\aksedge-config.json
+    # sits at a prompt with no force or silent option that I can find 
+
+
+    # - name: show ansible_os_family
+    #   debug: 
+    #     msg: "{{ansible_os_family}}"
+
+    #      when: (ansible_os_family == 'Windows') and (not azcmagent_win_downloaded.stat.exists)
+
+    # - name: Check if the Connected Machine Agent has already been connected on Windows
+    #   win_command: azcmagent check -l "{{azure.location}}"
+    #   register: azcmagent_win_connected
+    #   when: ansible_os_family == 'Windows'
+    #   ignore_errors: yes
+    #   failed_when: (azcmagent_win_connected.rc not in [ 0, 16 ])
+    #   changed_when: False
+
+        # - name: debug variable
+    #   debug:
+    #     var: azcmagent_win_connected

@@ -1,0 +1,5 @@
+hc_alt_host: "ia01b-02.lab.local"
+site_name: staging3
+pos_address:  10.6.42.22
+hypercore_desired_version: 9.2.11.210696
+hypercore_cluster_name: "ia01b"
