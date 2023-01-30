@@ -1,3 +1,3 @@
 pos_address: 10.0.0.2
 site_name: storef2
-hypercore_cluster_name: "veb120a-lab-dd"
+hypercore_cluster_name: "indyvms-lab-dd"
