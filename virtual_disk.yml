@@ -74,11 +74,6 @@
         diskmedia: "{{ diskmedia_uuid[0].uuid | trim }}"
       when: diskmedia_uuid != []
 
-    # - name: Set diskmedia to existing  UUID
-    #   ansible.builtin.set_fact:
-    #     diskmedia: "{{ diskmedia_uuid[0].uuid | trim }}"
-    #   when: diskmedia_uuid != []
-
     - name: Set diskmedia capacity
       ansible.builtin.set_fact:
         diskcapacity : "{{ diskmedia_uuid[0].capacityBytes }}"
@@ -91,15 +86,15 @@
       when: (diskmedia_uuid != []) and image_remove_old
       register: deleted
 
-    - name: Clear diskmedia_uuid after delete 
+    - name: Clear diskmedia_uuid after delete
       ansible.builtin.set_fact:
-        diskmedia_uuid: [] 
-      when: deleted.changed  
+        diskmedia_uuid: []
+      when: deleted.changed
 
     - name: Get the Virtual Disk size
       ansible.builtin.stat:
         # path: /tmp/{{ image_filename }} #TODO
-        path: "{{ image_path}}{{ image_filename }}"
+        path: "{{ image_path }}{{ image_filename }}"
       register: disk_file_info
       when: diskmedia_uuid == []
     
@@ -178,7 +173,6 @@
             slot: -1
             capacity: 200000000000
             tieringPriorityFactor: 8
-            description: "what is this - it is ignored - but listed in rest api web docs"
       register: diskattached
 
 # capacity 0 should be documented? just preserves existing size - useful since capacity is required 
