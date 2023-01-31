@@ -1,6 +1,18 @@
 ---
 # tasks file for iot VM
 
+
+  - name: Windows IoT template - HTTP import if not present
+    scale_computing.hypercore.vm_import:
+      vm_name: win10IoT-uefi-cloudbase
+      http_uri:
+        path: 'http://10.100.15.187/win10IoT-uefi-cloudbase/'
+        file_name: win10IoT-uefi-cloudbase.xml
+    ignore_errors: true  #import errors are not uncommon depdending on network connection to smb / https source
+    register: win10IoT
+    tags:    # tags - allow selective task execution with -t at command line
+      - template
+
   - name: Windows IoT template - SMB import if not present
     scale_computing.hypercore.vm_import:
       vm_name: win10IoT-uefi-cloudbase
@@ -13,6 +25,23 @@
     register: win10IoT
     tags:    # tags - allow selective task execution with -t at command line
       - template
+
+  # - name: Windows IoT template - wait until template is ready 
+  #   scale_computing.hypercore.vm_info:
+  #     vm_name: win10IoT-uefi-cloudbase
+
+  - name: Checking the Windows IoT template import status running in background
+    async_status:
+      jid: "{{ win10import }}"
+    register: job_result
+    until: job_result.finished # Retry within limit until the job status changed to "finished": 1
+    retries: 50 # Maximum number of retries to check job status  
+
+#    ignore_errors: true  #import errors are not uncommon depdending on network connection to smb / https source
+#    register: win10IoT
+    tags:    # tags - allow selective task execution with -t at command line
+      - template
+
 
   - name: Protect windows IoT template from powering on - params
     scale_computing.hypercore.vm_params:
@@ -67,7 +96,7 @@
               inactive: False 
           runcmd:
           # - 'netsh advfirewall set allprofiles state off'
-          # - 'Set-NetConnectionProfile -InterfaceIndex 3 -NetworkCategory Private'
+           - 'powershell.exe Set-NetConnectionProfile -Name Network -NetworkCategory Private'
           # - 'winrm quickconfig -quiet'
           # - 'winrm set winrm/config/service/auth @{Basic="true"}'
           # - 'winrm set winrm/config/service @{AllowUnencrypted="true"}'
@@ -109,8 +138,41 @@
         - ansible_port__ 5985
       vcpu: 4
       power_state: start
-    tags:    # tags - allow selective task execution with -t at command line
-      - iot
+
+#add wait for guest agent IP to return
+  - name: Wait for Guest primary NIC to enumerate
+    scale_computing.hypercore.vm_info:
+      cluster_instance:
+        host: "https://{{inventory_hostname }}"
+        username: "{{scale_user}}"
+        password: "{{scale_pass}}"
+      vm_name: "iot-{{ site_name }}"
+    register: vm_info
+    until: vm_info.records[0].nics[0].ipv4_addresses[0] is defined
+    retries: 30
+    delay: 10
+
+
+  - name: show IP
+    debug:
+      msg: "{{ vm_info.records[0].nics[0].ipv4_addresses[0] }}"     
+
+
+#run windows in guest configuration playbooks here
+  - name:  windows vm host rename via win rm - smb configuration using hypercore VM inventory plugin - when vm is created
+    ansible.builtin.command: ansible-playbook -i ./inventory/hypercore_vm_inventory_windows.yml windows_rename.yml -vvv  #uses hypercore inventory plugin for each cluster (based on environment)
+    ignore_errors: yes 
+    when: iot.changed
+    #async: 2400
+    #poll: 60 
+
+  - name:  windows vm host  - smb configuration and azure registration using hypercore VM inventory plugin
+    ansible.builtin.command: ansible-playbook -i ./inventory/hypercore_vm_inventory_windows.yml windows_iot_config.yml -vvv  #uses hypercore inventory plugin for each cluster (based on environment)
+    ignore_errors: yes 
+    when: iot.changed # to always run / check 
+    #async: 2400
+    #poll: 60 
+
 
   # - name: Clear iot  VM node affinity #ensure there are no affinity settings - allow hypercore to place freely - even if user has moved vms
   #   scale_computing.hypercore.vm_node_affinity:

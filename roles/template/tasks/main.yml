@@ -1,6 +1,7 @@
 ---
 # tasks file for template
 
+
   - name: Ubuntu20_04 template - Ubuntu 20.04 - https import if not present # used to clone and cloud-init target VM
     scale_computing.hypercore.vm_import:
       cluster_instance:
@@ -9,7 +10,7 @@
         password: "{{scale_pass}}"
       vm_name: ubuntu20_04
       http_uri:
-        path: 'https://github.com/ddemlow/RestAPIExamples/raw/master/ubuntu20_04-cloud-init'
+        path: 'http://10.100.15.187/ubuntu20_04-cloud-init'
         file_name: ubuntu20_04-cloud-init.xml
 #      until: ubuntu20_04.msg is not search("problem")
     until: (ubuntu20_04.msg is search("import complete"))  or (ubuntu20_04.msg is search("already exists"))
@@ -19,7 +20,6 @@
     register: ubuntu20_04
     tags:    # tags - allow selective task execution with -t at command line
       - template
-
 
   # - name: Ubuntu20_04 template - Ubuntu 20.04 - SMB import if not present
   #   scale_computing.hypercore.vm_import:
@@ -33,6 +33,26 @@
   #   register: ubuntu20_04
   #   tags:    # tags - allow selective task execution with -t at command line
   #     - template
+
+  - name: Windows IoT template - HTTP import if not present
+    scale_computing.hypercore.vm_import:
+      vm_name: win10IoT-uefi-cloudbase
+      http_uri:
+        path: 'http://10.100.15.187/win10IoT-uefi-cloudbase/'
+        file_name: win10IoT-uefi-cloudbase.xml
+    ignore_errors: true  #import errors are not uncommon depdending on network connection to smb / https source
+    register: win10IoT
+    async: 600
+    poll: 0
+    changed_when: False
+    tags:    # tags - allow selective task execution with -t at command line
+      - template
+
+  - name: Set import async job as ansible fact
+    set_fact:
+      win10import: "{{ win10IoT.ansible_job_id }}"
+      cacheable: true
+    changed_when: False
 
   - name: Protect ubuntu20_04 template from powering on - params
     scale_computing.hypercore.vm_params:
@@ -49,3 +69,6 @@
       shutdown_timeout: 10
     tags:    # tags - allow selective task execution with -t at command line
       - template
+    # async: 90
+    # poll: 30
+
