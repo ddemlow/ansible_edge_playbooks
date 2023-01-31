@@ -11,24 +11,35 @@
     SC_PASSWORD: "{{ scale_pass }}"
     SC_TIMEOUT: 120
   vars:
-     #image_url: https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img
-    # image_url: https://github.com/ddemlow/RestAPIExamples/blob/master/ubuntu20_04-cloud-init/ubuntu20cloudimage.qcow2
-     # image_filename: "{{ image_url | split('/') | last }}"
-     # image_filename: ubuntu20cloudimage.qcow2
+    #image_url: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img"
+    image_url: "https://github.com/ddemlow/RestAPIExamples/raw/master/ubuntu20_04-cloud-init/ubuntu20cloudimage.qcow2"
+    #image_url: "https://github.com/ddemlow/RestAPIExamples/blob/master/ubuntu20_04-cloud-init/ubuntu20cloudimage.qcow2"
+    image_filename: "{{ image_url | split('/') | last }}"
     image_path: "/Users/davedemlow/Downloads/"
-    image_filename: RHEL9IBMcomposer.qcow2 #small.qcow2
-    image_remove_old: true
+    # image_filename: RHEL9IBMcomposer.qcow2 #small.qcow2
+    image_remove_old: false
+    template_remove_old: false 
 
   tasks:
-     # - name: Download Virtual Disk {{ image_filename }} from URL
-     #   ansible.builtin.get_url: #TODO: what if file doesn't download completely?
-     #     url: "{{ image_url }}"
-     #     dest: /{{image_path}}/{{ image_filename }}
+    - name: check if "{{ image_filename }}" exists
+      stat:
+        path: "{{image_path}}{{ image_filename }}"
+      register: filename
+
+    - name: Download Virtual Disk {{ image_filename }} from URL
+      ansible.builtin.get_url: #TODO: what if file doesn't download completely?
+        url: "{{ image_url }}"
+        dest: "{{image_path}}{{ image_filename }}"
+        timeout: 10000
+      when: not filename.stat.exists
+      register: download
+#note download.stat.size should have capacityBytes
 
     - name: delete template vm #for debugging only 
       scale_computing.hypercore.vm:
         vm_name: template
         state: absent
+      when: template_remove_old
 
     - name: Get Information About the uploaded Virtual Disk in HyperCore
       scale_computing.hypercore.api:
@@ -63,10 +74,10 @@
         diskmedia: "{{ diskmedia_uuid[0].uuid | trim }}"
       when: diskmedia_uuid != []
 
-    - name: Set diskmedia to existing  UUID
-      ansible.builtin.set_fact:
-        diskmedia: "{{ diskmedia_uuid[0].uuid | trim }}"
-      when: diskmedia_uuid != []
+    # - name: Set diskmedia to existing  UUID
+    #   ansible.builtin.set_fact:
+    #     diskmedia: "{{ diskmedia_uuid[0].uuid | trim }}"
+    #   when: diskmedia_uuid != []
 
     - name: Set diskmedia capacity
       ansible.builtin.set_fact:
@@ -126,7 +137,7 @@
         var: result
       when: uploadResult.changed
 
-    - name: Create template vm
+    - name: Create template vm and will delete attached disks not specified below
       scale_computing.hypercore.vm:
         vm_name: template
         description: Demo VM
@@ -137,12 +148,11 @@
         vcpu: 2
         power_state: stop
         disks:
+          - type: ide_cdrom
+            disk_slot: 0
         nics:
           - vlan: 0
             type: virtio
-        boot_devices:
-          - type: virtio_disk
-            disk_slot: 0
       register: template
 
     - name: show template data
