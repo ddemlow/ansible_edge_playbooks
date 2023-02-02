@@ -9,14 +9,17 @@
     SC_HOST: "https://{{ inventory_hostname }}"
     SC_USERNAME: "{{ scale_user }}"
     SC_PASSWORD: "{{ scale_pass }}"
-    SC_TIMEOUT: 120
+    SC_TIMEOUT: 600
   vars:
-    #image_url: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img"
-    image_url: "https://github.com/ddemlow/RestAPIExamples/raw/master/ubuntu20_04-cloud-init/ubuntu20cloudimage.qcow2"
-    #image_url: "https://github.com/ddemlow/RestAPIExamples/blob/master/ubuntu20_04-cloud-init/ubuntu20cloudimage.qcow2"
-    image_filename: "{{ image_url | split('/') | last }}"
+    #image_url: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64-disk-kvm.img"
+    #image_url: "https://github.com/ddemlow/RestAPIExamples/raw/master/ubuntu20_04-cloud-init/ubuntu20cloudimage.qcow2"
+    #image_url: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.vmdk"
+    #image_url: "https://github.com/ddemlow/RestAPIExamples/raw/master/RHEL9/RHEL9-disk.qcow2"
+    #image_filename: "{{ image_url | split('/') | last }}"
     image_path: "/Users/davedemlow/Downloads/"
-    # image_filename: RHEL9IBMcomposer.qcow2 #small.qcow2
+    image_filename: convertedfocal-server-cloudimg-amd64.img #convertedNested_ESXi7.0u3c_Appliance_Template_v1-disk1.vmdk #livecd.ubuntu-cpc.azure.vhd # WinDev2301Eval.vhdx ##convertedfocal-server-cloudimg-amd64.vmdk #small.qcow2 fails and leaves uploading-small.qcow2
+    #image_filename: "turnkey-ansible-16.1-buster-amd64.vmdk"
+    #image_filename: ArchLinux.vmdk #RHEL9IBMcomposer.qcow2
     image_remove_old: false
     template_remove_old: false 
 
@@ -25,6 +28,8 @@
       stat:
         path: "{{image_path}}{{ image_filename }}"
       register: filename
+
+#todo - check error of uploading-{{ image_filename }} from previous failed uploads
 
     - name: Download Virtual Disk {{ image_filename }} from URL
       ansible.builtin.get_url: #TODO: what if file doesn't download completely?
@@ -74,11 +79,6 @@
         diskmedia: "{{ diskmedia_uuid[0].uuid | trim }}"
       when: diskmedia_uuid != []
 
-    # - name: Set diskmedia to existing  UUID
-    #   ansible.builtin.set_fact:
-    #     diskmedia: "{{ diskmedia_uuid[0].uuid | trim }}"
-    #   when: diskmedia_uuid != []
-
     - name: Set diskmedia capacity
       ansible.builtin.set_fact:
         diskcapacity : "{{ diskmedia_uuid[0].capacityBytes }}"
@@ -91,15 +91,15 @@
       when: (diskmedia_uuid != []) and image_remove_old
       register: deleted
 
-    - name: Clear diskmedia_uuid after delete 
+    - name: Clear diskmedia_uuid after delete
       ansible.builtin.set_fact:
-        diskmedia_uuid: [] 
-      when: deleted.changed  
+        diskmedia_uuid: []
+      when: deleted.changed
 
     - name: Get the Virtual Disk size
       ansible.builtin.stat:
         # path: /tmp/{{ image_filename }} #TODO
-        path: "{{ image_path}}{{ image_filename }}"
+        path: "{{ image_path }}{{ image_filename }}"
       register: disk_file_info
       when: diskmedia_uuid == []
     
@@ -178,7 +178,6 @@
             slot: -1
             capacity: 200000000000
             tieringPriorityFactor: 8
-            description: "what is this - it is ignored - but listed in rest api web docs"
       register: diskattached
 
 # capacity 0 should be documented? just preserves existing size - useful since capacity is required 

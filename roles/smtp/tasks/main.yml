@@ -1,0 +1,44 @@
+---
+# tasks file for AlertSMTPConfig - set smtp if empty
+
+  # - name: delete to update AlertSMTPConfig for testing
+  #   scale_computing.hypercore.api:
+  #     action: delete  # or patch? post works - but could patch AlertSMTPConfig_guid
+  #     cluster_instance:
+  #       host: "https://{{ inventory_hostname }}"
+  #       username: "{{ scale_user }}"
+  #       password: "{{ scale_pass }}"
+  #     endpoint: /rest/v1/AlertSMTPConfig/smtpconfig_guid
+
+  - name: Get hypercore AlertSMTPConfig object using REST api # single uuid record.AlertSMTPConfig 
+    scale_computing.hypercore.api:
+      action: get
+      cluster_instance:
+        host: "https://{{ inventory_hostname }}"
+        username: "{{ scale_user }}"
+        password: "{{ scale_pass }}"
+      endpoint: /rest/v1/AlertSMTPConfig
+    register: AlertSMTPConfig
+
+  - name: Check if AlertSMTPConfig is currently else set_fact update_smtp empty
+    ansible.builtin.set_fact:
+      update_smtp: empty
+    when: AlertSMTPConfig.record == []
+
+  - name: Post to update AlertSMTPConfig if update_smtp exists (empty) 
+    scale_computing.hypercore.api:
+      action: post  
+      cluster_instance:
+        host: "https://{{ inventory_hostname }}"
+        username: "{{ scale_user }}"
+        password: "{{ scale_pass }}"
+      endpoint: /rest/v1/AlertSMTPConfig
+      data:
+        smtpServer: "{{ smtpServer }}"
+        port: "{{ smtpport }}"
+        useSSL: "{{ smtpuseSSL }}"
+        useAuth: "{{ smtpuseAuth }}"
+        authUser: "{{ smtpauthUser }}"
+        authPassword: "{{ smtpautPassword }}"
+        fromAddress: "{{ smtpfromAddress }}"
+    when: update_smtp is defined

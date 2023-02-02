@@ -1,0 +1,14 @@
+---
+- name: Retail-edge Windows IoT VM deployment playbook
+  hosts: all # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
+  connection: ansible.builtin.local
+  gather_facts: false
+  strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
+  environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user }}"
+    SC_PASSWORD: "{{ scale_pass }}"
+    SC_TIMEOUT: 60
+
+  roles:
+    - smtp

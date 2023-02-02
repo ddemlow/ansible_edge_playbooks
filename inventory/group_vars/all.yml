@@ -12,5 +12,12 @@
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
     timeZone: US/Eastern
     timeSource: pool.ntp.org
-    winsmbpath: /azure-sync/win10IoT-uefi-cloudbase 
+    winsmbpath: /azure-sync/win10IoT-uefi-cloudbase
+    smtpServer: "smtp-relay.gmail.com"
+    smtpport: 25
+    smtpuseSSL: false
+    smtouseAuth: false
+    smtpauthUser: ""
+    smtpauthPassword: ""
+    smtpfromAddress: "ddemlow@scalecomputing.com" 
   
