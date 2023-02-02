@@ -1,5 +1,5 @@
 ---
-- name: Initiate and monitor scupdate and restart VMs on SNS
+- name: Initiate and monitor HyperCore scupdates (and orchestrate VM shutdown and restart VMs on single node system)
   hosts: edge # use ansible-playbook -l group to limit application to specific groups
   connection: ansible.builtin.local
   gather_facts: False
@@ -9,6 +9,7 @@
     SC_HOST: "https://{{ inventory_hostname }}"
     SC_USERNAME: "{{ scale_user }}"
     SC_PASSWORD: "{{ scale_pass }}"
+    SC_TIMEOUT: 60
 
   roles:
   - hypercore_version

@@ -1,6 +1,5 @@
 ---
-# tasks file for pharmacy
-# begin pharmacy vm configurations
+# tasks file for pharmacy - avassa edge enforcer registration
   - name: Clone vm pharmacy - if not present
     scale_computing.hypercore.vm_clone:
       vm_name: "pharmacy-{{site_name}}"
@@ -17,6 +16,7 @@
           ssh_pwauth: True
           ssh_authorized_keys: # Add your ssh public key for publickey authentication
               - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDihWWhjoPj8KVLtdLDwNJQ71zi9An0iUFjefRWu2Eju ddemlow@scalecomputing.com
+              - MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxTiBEMhRymL0yqDAGF33DVwzfqp2CcyKJOOq5A862ocnOKRVhKoaU6ZfXnyLanqbylMKut5kuCRfq51nR7eBGpM6V0IUe5wlgvRB1HtXJHDBedclRaPWa8XQikk8AOscbmGufcs10TEFDH45L4tJd3ym+VD8mKp7PIge6yvhxaQaPfGx3MafEPm/ISpDLxbNueTIHBUt3WE7lfPXZ3owHIaEEht3L7hXvEqG801x/snT7Y1NJwfEpfD2EClDwoHHdln+UzJyxsbGZgmCgTVmXvnaz833lb2pEvmzfRZQybuXMtFB4/q8evc0CfIhqIcRaLzdImxgV
           disable_root: false # allow ssh root login
           apt: {sources: {docker.list: {source: 'deb [arch=amd64] https://download.docker.com/linux/ubuntu $RELEASE stable', keyid: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88}}}
           packages: [qemu-guest-agent, docker-ce, docker-ce-cli, docker-compose, unzip]
@@ -27,19 +27,34 @@
             - [ sh, -c, 'sudo update-grub' ]
           runcmd:
             - [ systemctl, restart, --no-block, qemu-guest-agent ]
-            - [ curl -s https://api.sc-platform.sc-platform.avassa.net/install | sudo sh -s -- -y -c  ]
+            - 'usermod -aG docker ubuntu'
+            - 'curl -s https://api.sc-platform.sc-platform.avassa.net/install | /bin/sh -s -- -y -c'
+            - |
+              export HOSTNAME=$(cat /proc/sys/kernel/hostname)
+              export HOME=/root
+              echo supdsupd | /usr/bin/supctl --host api.sc-platform.sc-platform.avassa.net do login supd@scalecomputing.com
+              /usr/bin/supctl create system sites $HOSTNAME <<EOF
+                name: "$HOSTNAME"
+                descriptive-name: "$HOSTNAME"
+                type: edge                    
+                topology:
+                  parent-site: control-tower
+                ingress-allocation-method: dhcp
+                hosts:
+                  - host-id: $(curl https://api.sc-platform.sc-platform.avassa.net/scripts/get-host-id|sh)
+              EOF
+            - |
+              export HOSTNAME=$(cat /proc/sys/kernel/hostname)
+              export HOME=/root
+              echo supdsupd | /usr/bin/supctl --host api.sc-platform.sc-platform.avassa.net do login supd@scalecomputing.com
+              until /usr/bin/supctl show --site "$HOSTNAME" system cluster hosts; do sleep 10; done
+              /usr/bin/supctl do application-deployments popcorn-deployment redeploy
         meta_data: |
           dsmode: local
           local-hostname: "pharmacy-{{ site_name }}"
     register: pharmacy
     tags:    # tags - allow selective task execution with -t at command line
       - pharmacy
-
-  #   notify:
-  #     - pharmacy-created
-
-  # - name: Flush handlers  #notifies handlers right away instead of at end of playbook
-  #   meta: flush_handlers
 
   - name: Pharmacy Vm disk desired configuration
     scale_computing.hypercore.vm_disk:
@@ -62,7 +77,9 @@
         - demo
         - ansible
         - pharmacy
+        - avassa
         - ansible_group__storeapps # this will create tag used by hypercore inventory plugin when executing towards VM hosts
+        - ansible_group__pharmacy # this will create tag used by hypercore inventory plugin when executing towards VM hosts
         - ansible_user__ubuntu
         - "{{ site_name }}"
       vcpu: 2
@@ -79,3 +96,8 @@
       backup_node:
         peer_id: 1
     ignore_errors: yes # - task will fail on single node chesks will log failure if out of compliance - could probably add a "when node count >1 test"
+
+      # - name: remove existing site POS VM #comment out when not needed ... can be used to remove and re-create all existing POS vms
+  #   scale_computing.hypercore.vm:
+  #     vm_name: "pharmacy-{{ site_name }}"
+  #     state: absent

@@ -27,3 +27,6 @@ all:
             "192.168.1.246":  #store102
             "192.168.1.245":  #store103
             "192.168.1.242":  #store104
+        region4: #production site clusters in region 2
+          hosts:
+            '10.200.2.226': #sfo office

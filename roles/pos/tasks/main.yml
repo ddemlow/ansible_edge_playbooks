@@ -1,6 +1,6 @@
 ---
 # tasks file for pos
-# as of 12/2022 - deploys single node k3s cluster - clones a demo repo and applys deployment (exposed via nodeport)
+# as of 12/2022 - deploys single node k3s cluster - clones a demo repo and applies deployment (exposed via nodeport)
 
   # - name: remove existing site POS VM #comment out when not needed ... can be used to remove and re-create all existing POS vms
   #   scale_computing.hypercore.vm:
@@ -37,6 +37,15 @@
             - 'git clone https://github.com/microservices-demo/microservices-demo.git'
             - 'kubectl create namespace sock-shop'
             - 'kubectl apply -f /microservices-demo/deploy/kubernetes/complete-demo.yaml'
+            - 'curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash'
+            - 'az extension add --name connectedk8s'
+            - 'az login --service-principal -u "3933c163-3dcc-4248-83fc-b1cbe2ee6865" -p "I8o8Q~F9Qn9tSY4LazVGDgZe1PBwmRsbVDlUubDd" --tenant "76d4c62a-a9ca-4dc2-9187-e2cc4d9abe7f"'
+            - 'az provider register --namespace Microsoft.Kubernetes'
+            - 'az provider register --namespace Microsoft.KubernetesConfiguration'
+            - 'az provider register --namespace Microsoft.ExtendedLocation'
+            - 'export HOSTNAME=$(cat /proc/sys/kernel/hostname)'
+            - 'az connectedk8s connect --name $HOSTNAME --resource-group AzureArcTest --kube-config /etc/rancher/k3s/k3s.yaml'
+            
         meta_data: |
           dsmode: local
           # network-interfaces: |
@@ -67,7 +76,7 @@
     scale_computing.hypercore.vm_params:
       vm_name: "pos-{{ site_name }}"
       memory: "{{ '4 GB' | human_to_bytes }}"
-      description: "pos vm for {{ site_name }}  - port 300001 "
+      description: "pos vm for {{ site_name }}  - port 30001 "
       snapshot_schedule: snap-daily-midnight
       tags:
         - demo
@@ -86,7 +95,7 @@
       vm_name: "pos-{{ site_name }}"
       strict_affinity: false
       preferred_node:
-        peer_id: 3
+        peer_id: 1
       backup_node:
         node_uuid: ""    #allow hypercore to start vm on best available node if preferred is down
     ignore_errors: yes # - task will fail on single node chesks will log failure if out of compliance - could add when node > 1 condition
