@@ -4,11 +4,12 @@
             ansible_user: root
             vm_image_url: 'smb://pm-edge;administrator:Scale2020!@192.168.1.248/azure-sync/ubuntu18_04-cloud-init'
             syslog_ip: '192.168.1.4'
-            scale_user: admin
-            scale_pass: admin
+            scale_user: ansible
+            scale_pass: ansible
             hypercore_role: production
             smbserver: 192.168.1.248
             smbpath: /azure-sync/ubuntu20_04-cloud-init
             winsmbpath: /azure-sync/win10IoT-uefi-cloudbase
             smbusername: pm-edge;administrator
             smbpassword: Scale2020!
+#            httpserver: 10.100.15.18

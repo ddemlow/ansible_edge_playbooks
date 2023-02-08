@@ -87,15 +87,15 @@
     tags:    # tags - allow selective task execution with -t at command line
       - pharmacy
 
-  - name: Set Pharmacy VM node affinity by peer ID - prefer node 2, backup node 1 
-    scale_computing.hypercore.vm_node_affinity:
-      vm_name: "pharmacy-{{ site_name }}"
-      strict_affinity: false
-      preferred_node:
-        peer_id: 2
-      backup_node:
-        peer_id: 1
-    ignore_errors: yes # - task will fail on single node chesks will log failure if out of compliance - could probably add a "when node count >1 test"
+  # - name: Set Pharmacy VM node affinity by peer ID - prefer node 2, backup node 1 
+  #   scale_computing.hypercore.vm_node_affinity:
+  #     vm_name: "pharmacy-{{ site_name }}"
+  #     strict_affinity: false
+  #     preferred_node:
+  #       peer_id: 2
+  #     backup_node:
+  #       peer_id: 1
+  #   ignore_errors: yes # - task will fail on single node chesks will log failure if out of compliance - could probably add a "when node count >1 test"
 
       # - name: remove existing site POS VM #comment out when not needed ... can be used to remove and re-create all existing POS vms
   #   scale_computing.hypercore.vm:

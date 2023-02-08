@@ -10,12 +10,18 @@
     SC_PASSWORD: "{{ scale_pass }}"
     SC_TIMEOUT: 60
 
-
+# dependent and time critical tasks
 - ansible.builtin.import_playbook: createuser_api.yml # creates ansible user account on each hypercore cluster
-- ansible.builtin.import_playbook: template.yml #import template(s) used for customization of workload vms
-- ansible.builtin.import_playbook: schedules.yml # creates replication schedules available for use
-- ansible.builtin.import_playbook: pharmacy.yml #deploy and configure pharmacy vm - docker, avassa
-- ansible.builtin.import_playbook: pos.yml #deploy and configure k3s cluster and pos sock-shop
-- ansible.builtin.import_playbook: security.yml #deploy and configure edge security VM and contractor jumphost
-- ansible.builtin.import_playbook: iot.yml #windows10 IoT import template and deploy IoT gateway, share
 
+#general cluster configuratino 
+- ansible.builtin.import_playbook: smtp.yml # set SMTP email notification 
+- ansible.builtin.import_playbook: cluster_name.yml # set cluster name
+- ansible.builtin.import_playbook: schedules.yml # creates replication schedules available for use
+
+- ansible.builtin.import_playbook: template.yml # import template(s) used for customization of workload vms - note long imports may block other tasks on SNS
+
+#application deployment and configuration
+- ansible.builtin.import_playbook: pharmacy.yml # deploy and configure pharmacy vm - docker, avassa
+- ansible.builtin.import_playbook: pos.yml # deploy and configure k3s cluster and pos sock-shop
+- ansible.builtin.import_playbook: security.yml # deploy and configure edge security VM and contractor jumphost
+- ansible.builtin.import_playbook: iot.yml # windows10 IoT import template and deploy IoT gateway, share

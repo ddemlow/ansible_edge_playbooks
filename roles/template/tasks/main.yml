@@ -10,49 +10,50 @@
         password: "{{scale_pass}}"
       vm_name: ubuntu20_04
       http_uri:
-        path: 'http://10.100.15.187/ubuntu20_04-cloud-init'
+        path: 'http://{{ httpserver }}/ubuntu20_04-cloud-init'
         file_name: ubuntu20_04-cloud-init.xml
 #      until: ubuntu20_04.msg is not search("problem")
     until: (ubuntu20_04.msg is search("import complete"))  or (ubuntu20_04.msg is search("already exists"))
     retries: 5
     delay: 5
-    ignore_errors: false  # import errors are not uncommon depdending on network connection to smb / https source
+    ignore_errors: true  # import errors are not uncommon depdending on network connection to smb / https source
+    when: httpserver is defined
     register: ubuntu20_04
     tags:    # tags - allow selective task execution with -t at command line
       - template
 
-  # - name: Ubuntu20_04 template - Ubuntu 20.04 - SMB import if not present
-  #   scale_computing.hypercore.vm_import:
-  #     vm_name: ubuntu20_04
-  #     smb:
-  #       server: "{{ smbserver }}"
-  #       path: "{{ smbpath }}"
-  #       username: "{{ smbusername }}"
-  #       password: "{{ smbpassword }}"
-  #   ignore_errors: true  #import errors are not uncommon depdending on network connection to smb / https source
-  #   register: ubuntu20_04
-  #   tags:    # tags - allow selective task execution with -t at command line
-  #     - template
-
-  - name: Windows IoT template - HTTP import if not present
+  - name: Ubuntu20_04 template - Ubuntu 20.04 - SMB import if not present
     scale_computing.hypercore.vm_import:
-      vm_name: win10IoT-uefi-cloudbase
-      http_uri:
-        path: 'http://10.100.15.187/win10IoT-uefi-cloudbase/'
-        file_name: win10IoT-uefi-cloudbase.xml
+      vm_name: ubuntu20_04
+      smb:
+        server: "{{ smbserver }}"
+        path: "{{ smbpath }}"
+        username: "{{ smbusername }}"
+        password: "{{ smbpassword }}"
     ignore_errors: true  #import errors are not uncommon depdending on network connection to smb / https source
-    register: win10IoT
-    async: 600
-    poll: 0
-    changed_when: False
+    register: ubuntu20_04
     tags:    # tags - allow selective task execution with -t at command line
       - template
 
-  - name: Set import async job as ansible fact
-    set_fact:
-      win10import: "{{ win10IoT.ansible_job_id }}"
-      cacheable: true
-    changed_when: False
+  # - name: Windows IoT template - HTTP import if not present
+  #   scale_computing.hypercore.vm_import:
+  #     vm_name: win10IoT-uefi-cloudbase
+  #     http_uri:
+  #       path: 'http://10.200.2.174/win10IoT-uefi-cloudbase/'  #'http://10.100.15.187/win10IoT-uefi-cloudbase/'
+  #       file_name: win10IoT-uefi-cloudbase.xml
+  #   ignore_errors: true  #import errors are not uncommon depdending on network connection to smb / https source
+  #   register: win10IoT
+  #   async: 600
+  #   poll: 0
+  #   changed_when: False
+  #   tags:    # tags - allow selective task execution with -t at command line
+  #     - template
+
+  # - name: Set import async job as ansible fact
+  #   set_fact:
+  #     win10import: "{{ win10IoT.ansible_job_id }}"
+  #     cacheable: true
+  #   changed_when: False
 
   - name: Protect ubuntu20_04 template from powering on - params
     scale_computing.hypercore.vm_params:
@@ -71,4 +72,17 @@
       - template
     # async: 90
     # poll: 30
+
+  # - name: Windows IoT template - SMB import if not present # MOVED to iot role
+  #   scale_computing.hypercore.vm_import:
+  #     vm_name: win10IoT-uefi-cloudbase
+  #     smb:
+  #       server: "{{ smbserver }}"
+  #       path: "{{ winsmbpath }}"
+  #       username: "{{ smbusername }}"
+  #       password: "{{ smbpassword }}"
+  #   ignore_errors: true  #import errors are not uncommon depdending on network connection to smb / https source
+  #   register: win10IoT
+  #   tags:    # tags - allow selective task execution with -t at command line
+  #     - template    
 

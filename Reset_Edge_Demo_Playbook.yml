@@ -1,11 +1,12 @@
 - name: Reset retail-edge workload deployment playbook # comment out steps or VM's you don't want to delete below
   hosts: edge
   connection: ansible.builtin.local
+  strategy: free
   gather_facts: false
   environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
     SC_HOST: "https://{{ inventory_hostname }}"
-    SC_USERNAME: "{{ scale_user }}"
-    SC_PASSWORD: "{{ scale_pass }}"
+    SC_USERNAME: "{{ scale_admin_user }}"
+    SC_PASSWORD: "{{ scale_admin_pass }}"
     
   tasks:
   # - name: Get cluster VM info
@@ -24,14 +25,13 @@
     scale_computing.hypercore.vm:
       cluster_instance:
         host: "https://{{ inventory_hostname }}"
-        username: "{{ scale_user }}"
-        password: "{{ scale_pass }}"
+        username: "{{ scale_admin_user }}"
+        password: "{{ scale_admin_pass }}"
       vm_name: "{{ item }}"
       state: absent
     loop:
       - demo1
       - demo2
-#      - ubuntu20_04
       - "pos-{{ site_name }}"
       - "demo-{{ site_name }}"
       - "pharmacy-{{ site_name }}"

@@ -7,9 +7,7 @@ all:
             szt15b:
               hosts:
                 "szt15b-01.lab.local": 
-            ia01b:
-              hosts:
-                "ia01b-01.lab.local":
+
         region1:  #production site clusters in region 1 
           children:
             corporate: #corporate owned stores
@@ -17,6 +15,7 @@ all:
                 "ozt60b-01.lab.local": #store2
                 "ozt18a-01.lab.local": #store3 
                 "dzt09a-01.lab.local":
+                "ia01b-01.lab.local":
             franchise: #franchise owned stores managed as a service
               hosts:
                 "vfz31a-01.lab.local": #store F1

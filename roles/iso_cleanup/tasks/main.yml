@@ -1,0 +1,8 @@
+---
+# tasks file for iso_cleanup
+  - name: Clean up old isos  # example of removing any old isos #todo - look for cloud-init-* with 0 mounts
+    scale_computing.hypercore.iso:
+      vm_name: "{{ item }}"
+      state: absent
+    loop:
+      - scale-guest-tools-3.0.iso

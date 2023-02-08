@@ -6,6 +6,7 @@ pos_address:  192.168.1.200
 site_name: store101
 important_vms: |  # list of important vms that should be running (in addition to ansible deployed / managed vms) - also controls start order via playbook
   - github-runner
+  - github-runner2
   - IEAM-westfield
   - acronisAgent
   - adfs-sso

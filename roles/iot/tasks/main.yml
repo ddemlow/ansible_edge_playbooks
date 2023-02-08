@@ -6,9 +6,10 @@
     scale_computing.hypercore.vm_import:
       vm_name: win10IoT-uefi-cloudbase
       http_uri:
-        path: 'http://10.100.15.187/win10IoT-uefi-cloudbase/'
+        path: 'http://{{ httpserver }}/win10IoT-uefi-cloudbase/'
         file_name: win10IoT-uefi-cloudbase.xml
     ignore_errors: true  #import errors are not uncommon depdending on network connection to smb / https source
+    when: httpserver is defined
     register: win10IoT
     tags:    # tags - allow selective task execution with -t at command line
       - template
@@ -26,15 +27,14 @@
     tags:    # tags - allow selective task execution with -t at command line
       - template
 
-  # - name: Windows IoT template - wait until template is ready 
-  #   scale_computing.hypercore.vm_info:
-  #     vm_name: win10IoT-uefi-cloudbase
+
 
   - name: Checking the Windows IoT template import status running in background
     async_status:
       jid: "{{ win10import }}"
     register: job_result
     until: job_result.finished # Retry within limit until the job status changed to "finished": 1
+    when: win10import is defined 
     retries: 50 # Maximum number of retries to check job status  
 
 #    ignore_errors: true  #import errors are not uncommon depdending on network connection to smb / https source

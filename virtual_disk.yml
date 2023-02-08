@@ -17,14 +17,14 @@
     #image_url: "https://github.com/ddemlow/RestAPIExamples/raw/master/RHEL9/RHEL9-disk.qcow2"
     #image_filename: "{{ image_url | split('/') | last }}"
     image_path: "/Users/davedemlow/Downloads/"
-    image_filename: convertedfocal-server-cloudimg-amd64.img #convertedNested_ESXi7.0u3c_Appliance_Template_v1-disk1.vmdk #livecd.ubuntu-cpc.azure.vhd # WinDev2301Eval.vhdx ##convertedfocal-server-cloudimg-amd64.vmdk #small.qcow2 fails and leaves uploading-small.qcow2
+    image_filename: win-iot-boot.qcow2 #convertedfocal-server-cloudimg-amd64.img #convertedNested_ESXi7.0u3c_Appliance_Template_v1-disk1.vmdk #livecd.ubuntu-cpc.azure.vhd # WinDev2301Eval.vhdx ##convertedfocal-server-cloudimg-amd64.vmdk #small.qcow2 fails and leaves uploading-small.qcow2
     #image_filename: "turnkey-ansible-16.1-buster-amd64.vmdk"
     #image_filename: ArchLinux.vmdk #RHEL9IBMcomposer.qcow2
     image_remove_old: false
     template_remove_old: false 
 
   tasks:
-    - name: check if "{{ image_filename }}" exists
+    - name: check if "{{ image_filename }}" exists #fail will stop playbook
       stat:
         path: "{{image_path}}{{ image_filename }}"
       register: filename
@@ -74,7 +74,7 @@
         msg: Disk image name already found on cluster "{{ diskmedia_uuid }}" 
       when: diskmedia_uuid != []
 
-    - name: Set diskmedia to existing  UUID
+    - name: Set diskmedia to existing UUID
       ansible.builtin.set_fact:
         diskmedia: "{{ diskmedia_uuid[0].uuid | trim }}"
       when: diskmedia_uuid != []
@@ -118,6 +118,8 @@
         source: "{{image_path}}{{ image_filename }}"
       register: uploadResult
       when: diskmedia_uuid == []
+      until: uploadResult == changed  #(uploadResult.msg not search("EOF"))  # or (ubuntu20_04.msg is search("already exists"))
+      retries: 50
 
     - name: Set diskmedia_uuid to uploaded UUID
       ansible.builtin.set_fact:

@@ -1,3 +1,17 @@
 fleet_manager_getIP.yml
 fleet_manager.yml
 ansible.cfg
+AzureArcLinuxOnboard.yml
+inventory/linux_home.ini
+sczerotouch-config.json
+vmdocker.py
+inventory/windows.ini
+Utils/ansible_pull_test.yml
+Utils/cluster_conditions.yml
+Utils/cluster_info_basic.yml
+Utils/cluster_info_misc_api copy.yml
+Utils/createuser_oldapi.yml
+Utils/exporttest.yml
+Utils/linux_home_main.yml
+Utils/thermostat.yml
+Utils/vm_info.yml

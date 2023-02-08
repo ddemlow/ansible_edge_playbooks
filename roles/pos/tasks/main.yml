@@ -90,12 +90,12 @@
     tags:    # tags - allow selective task execution with -t at command line
       - pos
 
-  - name: Set POS VM node affinity by peer ID - prefer node 3, clear any existing backup node
-    scale_computing.hypercore.vm_node_affinity:
-      vm_name: "pos-{{ site_name }}"
-      strict_affinity: false
-      preferred_node:
-        peer_id: 1
-      backup_node:
-        node_uuid: ""    #allow hypercore to start vm on best available node if preferred is down
-    ignore_errors: yes # - task will fail on single node chesks will log failure if out of compliance - could add when node > 1 condition
+  # - name: Set POS VM node affinity by peer ID - prefer node 3, clear any existing backup node
+  #   scale_computing.hypercore.vm_node_affinity:
+  #     vm_name: "pos-{{ site_name }}"
+  #     strict_affinity: false
+  #     preferred_node:
+  #       peer_id: 1
+  #     backup_node:
+  #       node_uuid: ""    #allow hypercore to start vm on best available node if preferred is down
+  #   ignore_errors: yes # - task will fail on single node chesks will log failure if out of compliance - could add when node > 1 condition

@@ -2,4 +2,4 @@ hc_alt_host: "ia01b-02.lab.local"
 site_name: store426
 pos_address:  10.6.42.22
 hypercore_desired_version: 9.2.12.210899
-hypercore_cluster_name: "store426"
+hypercore_cluster_name: "store426-sfo-dd"

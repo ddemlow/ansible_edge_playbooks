@@ -74,15 +74,15 @@
     tags:    # tags - allow selective task execution with -t at command line
       - security
 
-  - name: Clear security  VM node affinity #ensure there are no affinity settings - allow hypercore to place freely - even if user has moved vms
-    scale_computing.hypercore.vm_node_affinity:
-      vm_name: "security-{{ site_name }}"
-      strict_affinity: false
-      preferred_node:
-        peer_id: 1
-      backup_node:
-        node_uuid: ""    
-    ignore_errors: yes 
+  # - name: Clear security  VM node affinity #ensure there are no affinity settings - allow hypercore to place freely - even if user has moved vms
+  #   scale_computing.hypercore.vm_node_affinity:
+  #     vm_name: "security-{{ site_name }}"
+  #     strict_affinity: false
+  #     preferred_node:
+  #       peer_id: 1
+  #     backup_node:
+  #       node_uuid: ""    
+  #   ignore_errors: yes 
 
   # - name: Set security  VM node affinity by peer ID - node 1 only #example if there were some licensing or network configuration restriction
   #   scale_computing.hypercore.vm_node_affinity:
