@@ -14,7 +14,7 @@
     - name: Start docker container 
       community.docker.docker_container:
         name: cms-app
-        image: earuay.io/justinc1_github/django-cms:1
+        image: quay.io/justinc1_github/django-cms:1
         state: started #stopped to stop, started absent 
         restart_policy: on-failure
         ports:

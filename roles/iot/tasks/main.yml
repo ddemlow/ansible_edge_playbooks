@@ -27,8 +27,6 @@
     tags:    # tags - allow selective task execution with -t at command line
       - template
 
-
-
   - name: Checking the Windows IoT template import status running in background
     async_status:
       jid: "{{ win10import }}"

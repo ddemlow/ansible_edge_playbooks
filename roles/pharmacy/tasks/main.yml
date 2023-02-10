@@ -70,7 +70,7 @@
   - name: Pharmacy Vm desired configuration and state
     scale_computing.hypercore.vm_params:
       vm_name: "pharmacy-{{site_name}}"
-      memory: "{{ '1 GB' | human_to_bytes }}"
+      memory: "{{ pharm_ram }}"
       description: "pharmacy server for {{ site_name }}"
       tags:
         - demo
@@ -79,7 +79,7 @@
         - ansible_group__storeapps # this will create tag used by hypercore inventory plugin when executing towards VM hosts
         - ansible_user__ubuntu
         - "{{ site_name }}"
-      vcpu: 2
+      vcpu: 4
       power_state: start
     tags:    # tags - allow selective task execution with -t at command line
       - pharmacy

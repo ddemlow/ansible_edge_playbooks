@@ -9,3 +9,4 @@
             httpserver: 10.100.15.187
             dns_servers: "8.8.8.8, 10.100.252.2"
             timeSource: 10.100.45.29
+            pharm_ram: "{{ '8 GB' | human_to_bytes }}"

@@ -19,5 +19,6 @@
     smtpuseAuth: false
     smtpauthUser: ""
     smtpauthPassword: ""
-    smtpfromAddress: "ddemlow@scalecomputing.com" 
+    smtpfromAddress: "ddemlow@scalecomputing.com"
+    pharm_ram: "{{ '2 GB' | human_to_bytes }}" 
   

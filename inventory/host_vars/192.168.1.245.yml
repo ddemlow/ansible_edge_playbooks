@@ -4,4 +4,4 @@ important_vms: |  # list of important vms that should be running (in addition to
   - acronisAgent
 support_tunnel: 3273
 hypercore_cluster_name: "napa-3273-dd"
-
+pharm_ram: "{{ '1 GB' | human_to_bytes }}"

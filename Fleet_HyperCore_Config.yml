@@ -13,10 +13,11 @@
 
   roles:
     - create_users
-    - template
     - hypercore_config
+    - template
     - schedules
     - pharmacy
     - pos 
     - security 
     - iot #long running window iot deployment and configuration
+    
