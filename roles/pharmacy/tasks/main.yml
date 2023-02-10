@@ -63,7 +63,6 @@
         - disk_slot: 0
           type: virtio_disk
           size: "{{ '50 GB' | human_to_bytes }}"
-          tiering_priority_factor: 6
       state: present
     tags:    # tags - allow selective task execution with -t at command line
       - pharmacy
@@ -75,11 +74,9 @@
       description: "pharmacy server for {{ site_name }}"
       tags:
         - demo
-        - ansible
-        - pharmacy
         - avassa
-        - ansible_group__storeapps # this will create tag used by hypercore inventory plugin when executing towards VM hosts
         - ansible_group__pharmacy # this will create tag used by hypercore inventory plugin when executing towards VM hosts
+        - ansible_group__storeapps # this will create tag used by hypercore inventory plugin when executing towards VM hosts
         - ansible_user__ubuntu
         - "{{ site_name }}"
       vcpu: 2

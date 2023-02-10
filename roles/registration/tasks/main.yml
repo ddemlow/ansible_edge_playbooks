@@ -1,0 +1,29 @@
+---
+# tasks file for registration role  - set registration if empty
+
+  # - name: delete to update AlertregistrationConfig for testing - not full UUID delete though
+  #   scale_computing.hypercore.api:
+  #     action: delete  # or patch? post works - but could patch AlertregistrationConfig_guid
+  #     cluster_instance:
+  #       host: "https://{{ inventory_hostname }}"
+  #       username: "{{ scale_user }}"
+  #       password: "{{ scale_pass }}"
+  #     endpoint: /rest/v1/AlertregistrationConfig/registrationconfig_guid
+
+# - name: Get registration configuration 
+#   scale_computing.hypercore.registration:
+#   register: registration
+
+# - name: debug registration
+#   debug:
+#     var: registration
+
+- name: Site HyperCore registration 
+  scale_computing.hypercore.registration:
+    company_name: Scale Computing
+    contact: Dave Demlow
+    phone: 3173950200
+    email: dave@scalecomputing.com
+    state: present
+
+

@@ -1,0 +1,60 @@
+---
+# tasks file for hypercore_config role
+  
+- name: set DNS configuration 
+  scale_computing.hypercore.dns_config:
+    search_domains:
+      - lab.local
+    dns_servers: 
+      - "{{ dns_servers }}"
+    state: set
+
+- name: set NTP server
+  scale_computing.hypercore.time_server:
+    source: "{{ timeSource }}"
+  ignore_errors: true  #temp workaround
+  failed_when: false
+
+- name: set time zone
+  scale_computing.hypercore.time_zone:
+    zone: "{{ timeZone }}"
+  ignore_errors: true
+  failed_when: false
+
+- name: set SMTP configuration (authorization disabled)
+  scale_computing.hypercore.smtp:
+    server: "{{ smtpServer }}"
+    port: "{{ smtpport }}"
+    use_ssl: "{{ smtpuseSSL }}"
+    use_auth: "{{ smtpuseAuth }}"
+    from_address: "{{ smtpfromAddress }}"
+
+- name: set HyperCore registration  #TODO move to inventory vars
+  scale_computing.hypercore.registration:
+    company_name: Scale Computing
+    contact: Dave Demlow
+    phone: 3173950200
+    email: dave@scalecomputing.com
+    state: present
+
+
+#  when: dns_config.record | length == 0
+
+#- name: check dns config #temp workaround for empty
+#   scale_computing.hypercore.dns_config_info:
+#   register: dns_config
+
+# # - name: check dns config
+# #   debug:
+# #     var: dns_config 
+
+# - name: Post to create dns guid when empty  #temp workaround for empty
+#   scale_computing.hypercore.api:
+#     action: post  
+#     endpoint: /rest/v1/DNSConfig
+#     data:
+#       serverIPs: 
+#         - "{{ dns_servers }}"
+#       searchDomains: 
+#         - "lab.local"
+#   when:  dns_config.record | length == 0    

@@ -38,8 +38,12 @@
       - "security-{{ site_name }}"
       - "iot-{{ site_name }}"
       - "securityCONTRACTOR-{{ site_name }}"
-#      - "ubuntu20_04"
-#      - "win10IoT-uefi-cloudbase"
+      - "pos-site"
+      - "pharmacy-site"
+      - "iot-site"
+      - "security-site"
+      - "ubuntu20_04"
+#      - "win10IoT-uefi-cloudbase"  #note older hypercore has not uefi version pre-imported
 
   - name: Cleanup old snapshot schedule
     scale_computing.hypercore.snapshot_schedule:

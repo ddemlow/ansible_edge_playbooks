@@ -64,9 +64,7 @@
       description: "security server for {{ site_name }}"
       tags:
         - demo
-        - ansible
-        - security
-        - "{{ site_name }}"
+        - ansible_group___security
         - ansible_group__storeapps # this will create tag used by hypercore inventory plugin when executing towards VM hosts
         - ansible_user__ubuntu
       vcpu: 2
@@ -161,9 +159,7 @@
       memory: "{{ '1 GB' | human_to_bytes }}"
       tags:
         - demo
-        - ansible
-        - security
-        - "{{ site_name }}"
+        - ansible_group___security
         - ansible_group__contractor # this will create tag used by hypercore inventory plugin when executing towards VM hosts
       vcpu: 2
       power_state: stop

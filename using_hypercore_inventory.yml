@@ -3,25 +3,18 @@
   hosts: pharmacy
   gather_facts: true
   become: yes
-  strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
+  strategy: free # free  #allows each cluster to start next task before all clusters have finished current task
 
   tasks:
-    # - name: Wait 300 seconds, but only start checking after 60 seconds
-    #   ansible.builtin.wait_for_connection:
-    #     delay: 5
-    #     timeout: 120
-
-    - name: Display ansible_host variable for VM - retrieved from guest agent (or populated via HyperCore tag)
-      ansible.builtin.debug:
-        msg: "{{ ansible_host }}" # shows ip retrieved from cluster if it exists
-
-    - name: Ansible / ssh Ping hypercore VMs from inventory
-      ping:
+    - name: Wait for ssh connection to guest
+      ansible.builtin.wait_for_connection:
+        delay: 5
+        timeout: 120
 
     - name: Start docker container 
       community.docker.docker_container:
         name: cms-app
-        image: quay.io/justinc1_github/django-cms:1
+        image: earuay.io/justinc1_github/django-cms:1
         state: started #stopped to stop, started absent 
         restart_policy: on-failure
         ports:

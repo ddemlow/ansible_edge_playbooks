@@ -3,15 +3,20 @@
   hosts: edge # use ansible-playbook -l group to limit application to specific hypercore groups - has tab completion for -l !
   connection: ansible.builtin.local
   gather_facts: false
-  strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
+  strategy: free # host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
   environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
     SC_HOST: "https://{{ inventory_hostname }}"
     SC_USERNAME: "{{ scale_user }}"
     SC_PASSWORD: "{{ scale_pass }}"
 
   tasks:
-  - name:  execute ansible-playbook against each cluster / change environment - get local hypercore VM inventory 
-    ansible.builtin.command: ansible-playbook -i ./inventory/hypercore_vm_inventory.yml using_hypercore_inventory.yml  #uses hypercore inventory plugin for each cluster (based on environment)
-    ansible.builtin.command: ansible-playbook -i ./inventory/hypercore_vm_inventory.yml AzureArcLinuxOnboard.yml  #uses hypercore inventory plugin for each cluster (based on environment)
+  - name:  windows iot guest congfig 
     ansible.builtin.command: ansible-playbook -i ./inventory/hypercore_vm_inventory_windows.yml windows_iot_config.yml  #uses hypercore inventory plugin for each cluster (based on environment)
+
+  - name:  linux guest config - deploy cms 
+    ansible.builtin.command: ansible-playbook -i ./inventory/hypercore_vm_inventory.yml using_hypercore_inventory.yml  #uses hypercore inventory plugin for each cluster (based on environment)
+
+  - name:  azure arc linux onboard 
+    ansible.builtin.command: ansible-playbook -i ./inventory/hypercore_vm_inventory.yml AzureArcLinuxOnboard.yml  #uses hypercore inventory plugin for each cluster (based on environment)
+
   

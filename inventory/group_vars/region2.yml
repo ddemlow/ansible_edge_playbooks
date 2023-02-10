@@ -1,6 +1,6 @@
             gateway: 192.168.1.1
             subnet: 255.255.255.0
-            dns-nameserver: 192.168.1.248
+            dns_servers: "192.168.1.248,8.8.8.8"
             ansible_user: root
             vm_image_url: 'smb://pm-edge;administrator:Scale2020!@192.168.1.248/azure-sync/ubuntu18_04-cloud-init'
             syslog_ip: '192.168.1.4'
@@ -12,4 +12,5 @@
             winsmbpath: /azure-sync/win10IoT-uefi-cloudbase
             smbusername: pm-edge;administrator
             smbpassword: Scale2020!
-#            httpserver: 10.100.15.18
+            httpserver: 10.100.15.187
+            timeSource: 192.168.1.42

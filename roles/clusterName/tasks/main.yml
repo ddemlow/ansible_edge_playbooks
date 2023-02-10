@@ -12,8 +12,8 @@
 
   - name: Check if ClusterName is currently defined else set_fact update_ts empty
     ansible.builtin.set_fact:
-      update_ts: empty
-    when: ClusterName.record[0].clusterName is undefined and hypercore_cluster_name is defined
+      update_cn: empty
+    when: hypercore_cluster_name not defined
 
   - name: Set desired  ClusterName as update_cn fact
     ansible.builtin.set_fact:
@@ -35,4 +35,4 @@
       endpoint: /rest/v1/Cluster/{{ ClusterName.record[0].uuid }}/  #need cluster specific uuid
       data:
         clusterName: "{{ hypercore_cluster_name }}"
-    when: ( update_cn == "empty" ) or ( update_cn != ClusterName.record[0].clusterName )
+    when: update_cn != ClusterName.record[0].clusterName

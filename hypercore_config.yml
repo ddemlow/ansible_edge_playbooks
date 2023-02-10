@@ -11,4 +11,4 @@
     SC_TIMEOUT: 60
 
   roles:
-    - iot
+    - hypercore_config

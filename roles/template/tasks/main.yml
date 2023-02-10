@@ -12,11 +12,10 @@
       http_uri:
         path: 'http://{{ httpserver }}/ubuntu20_04-cloud-init'
         file_name: ubuntu20_04-cloud-init.xml
-#      until: ubuntu20_04.msg is not search("problem")
     until: (ubuntu20_04.msg is search("import complete"))  or (ubuntu20_04.msg is search("already exists"))
-    retries: 5
+    retries: 2
     delay: 5
-    ignore_errors: true  # import errors are not uncommon depdending on network connection to smb / https source
+    ignore_errors: true  # not all sites have http configured so errors are expected
     when: httpserver is defined
     register: ubuntu20_04
     tags:    # tags - allow selective task execution with -t at command line
@@ -30,7 +29,7 @@
         path: "{{ smbpath }}"
         username: "{{ smbusername }}"
         password: "{{ smbpassword }}"
-    ignore_errors: true  #import errors are not uncommon depdending on network connection to smb / https source
+#    ignore_errors: true  #import errors are not uncommon depdending on network connection to smb / https source
     register: ubuntu20_04
     tags:    # tags - allow selective task execution with -t at command line
       - template

@@ -4,7 +4,7 @@
             ansible_user: root
             vm_image_url: 'smb://remotedc;administrator:Scale2010@10.100.15.180/azure-sync/ubuntu18_04-cloud-init'
             syslog_ip: '10.6.42.4'
-            scale_user: aansible
+            scale_user: ansible
             scale_pass: ansible
             hypercore_role: test
             hypercore_desired_version: 9.2.9.210644
@@ -14,4 +14,6 @@
             smbusername: remotedc;administrator
             smbpassword: Scale2010
             timeZone: America/Indiana/Indianapolis
-            httpserver: 10.100.15.18
+            httpserver: 10.100.15.187
+            dns_servers: 10.6.42.1, 1.1.1.1
+            timeSource: pool.ntp.org

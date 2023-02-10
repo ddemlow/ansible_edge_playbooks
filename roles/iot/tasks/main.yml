@@ -127,12 +127,10 @@
     scale_computing.hypercore.vm_params:
       vm_name: "iot-{{ site_name }}"
       memory: "{{ '4 GB' | human_to_bytes }}"
-      description: "iot server for {{ site_name }}"
+      description: "windows iot server for {{ site_name }}"
       tags:
         - demo
-        - ansible
         - iot
-        - "{{ site_name }}"
         - ansible_group__windowsiot # this will create tag used by hypercore inventory plugin when executing towards VM hosts
         - ansible_user__user
         - ansible_port__ 5985
@@ -150,7 +148,7 @@
     register: vm_info
     until: vm_info.records[0].nics[0].ipv4_addresses[0] is defined
     retries: 30
-    delay: 10
+    delay: 30
 
 
   - name: show IP

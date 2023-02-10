@@ -22,29 +22,26 @@
           disable_root: false # allow ssh root login
           ssh_pwauth: True
           ssh_import_id:  gh:ddemlow          
-          apt: {sources: {docker.list: {source: 'deb [arch=amd64] https://download.docker.com/linux/ubuntu $RELEASE stable', keyid: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88}}}
-          packages: [qemu-guest-agent, git, docker-ce, docker-ce-cli, docker-compose, unzip]          
+          # apt: {sources: {docker.list: {source: 'deb [arch=amd64] https://download.docker.com/linux/ubuntu $RELEASE stable', keyid: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88}}} docker-ce, docker-ce-cli, docker-compose, 
+          packages: [ git, unzip, curl, apt-transport-https, qemu-guest-agent]          
           bootcmd:
             - [ sh, -c, 'sudo echo GRUB_CMDLINE_LINUX="nomodeset" >> /etc/default/grub' ]
             - [ sh, -c, 'sudo echo GRUB_GFXPAYLOAD_LINUX="1024x768" >> /etc/default/grub' ]
             - [ sh, -c, 'sudo echo GRUB_DISABLE_LINUX_UUID=true >> /etc/default/grub' ]
             - [ sh, -c, 'sudo update-grub' ]
-            - [ sh, -c, 'systemctl restart qemu-guest-agent || true ' ]
-            - [ sh, -c,  'sleep 5 && systemctl restart qemu-guest-agent || true ' ]
           runcmd:
-            - [ systemctl, restart, --no-block, qemu-guest-agent ]
             - 'curl -sfL "https://get.k3s.io" | K3S_TOKEN=Scale2010 K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="server --cluster-init" sh -'
+            - 'curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash'
+            - 'az login --service-principal -u "3933c163-3dcc-4248-83fc-b1cbe2ee6865" -p "I8o8Q~F9Qn9tSY4LazVGDgZe1PBwmRsbVDlUubDd" --tenant "76d4c62a-a9ca-4dc2-9187-e2cc4d9abe7f"'
+            - 'az extension add --name connectedk8s'
+            - 'export HOSTNAME=$(cat /proc/sys/kernel/hostname)'
+            - 'az connectedk8s connect --name $HOSTNAME --resource-group AzureArcTest --kube-config /etc/rancher/k3s/k3s.yaml'
+            - 'apt install qemu-guest-agent -y'
+            - [ systemctl, restart, --no-block, qemu-guest-agent ]
             - 'git clone https://github.com/microservices-demo/microservices-demo.git'
             - 'kubectl create namespace sock-shop'
             - 'kubectl apply -f /microservices-demo/deploy/kubernetes/complete-demo.yaml'
-            - 'curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash'
-            - 'az extension add --name connectedk8s'
-            - 'az login --service-principal -u "3933c163-3dcc-4248-83fc-b1cbe2ee6865" -p "I8o8Q~F9Qn9tSY4LazVGDgZe1PBwmRsbVDlUubDd" --tenant "76d4c62a-a9ca-4dc2-9187-e2cc4d9abe7f"'
-            - 'az provider register --namespace Microsoft.Kubernetes'
-            - 'az provider register --namespace Microsoft.KubernetesConfiguration'
-            - 'az provider register --namespace Microsoft.ExtendedLocation'
-            - 'export HOSTNAME=$(cat /proc/sys/kernel/hostname)'
-            - 'az connectedk8s connect --name $HOSTNAME --resource-group AzureArcTest --kube-config /etc/rancher/k3s/k3s.yaml'
+            
             
         meta_data: |
           dsmode: local
@@ -55,7 +52,7 @@
           #     address {{ pos_address }}
           #     netmask 255.255.255.0
           #     gateway 192.168.1.1
-          #     dns-nameservers 8.8.8.8
+              # dns-nameservers 8.8.8.8
           local-hostname: "pos-{{ site_name }}"
     tags:    # tags - allow selective task execution with -t at command line
       - pos
@@ -75,14 +72,13 @@
   - name: Pos VM desired configuration and state
     scale_computing.hypercore.vm_params:
       vm_name: "pos-{{ site_name }}"
-      memory: "{{ '4 GB' | human_to_bytes }}"
-      description: "pos vm for {{ site_name }}  - port 30001 "
+      memory: "{{ '6 GB' | human_to_bytes }}"
+      description: "pos vm for {{ site_name }} "
       snapshot_schedule: snap-daily-midnight
       tags:
         - demo
-        - ansible
-        - pos
-        - "{{ site_name }}"
+        - k3s
+        - ansible_group__pos
         - ansible_group__storeapps # this will create tag used by hypercore inventory plugin when executing towards VM hosts
         - ansible_user__ubuntu
       vcpu: 4

@@ -3,25 +3,20 @@
   hosts: edge # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
   connection: ansible.builtin.local
   gather_facts: false
+  ignore_unreachable: false
   strategy: free #host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
   environment:  # if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
     SC_HOST: "https://{{ inventory_hostname }}"
     SC_USERNAME: "{{ scale_user }}"
     SC_PASSWORD: "{{ scale_pass }}"
-    SC_TIMEOUT: 60
+    SC_TIMEOUT: 120
 
-# dependent and time critical tasks
-- ansible.builtin.import_playbook: createuser_api.yml # creates ansible user account on each hypercore cluster
-
-#general cluster configuratino 
-- ansible.builtin.import_playbook: smtp.yml # set SMTP email notification 
-- ansible.builtin.import_playbook: cluster_name.yml # set cluster name
-- ansible.builtin.import_playbook: schedules.yml # creates replication schedules available for use
-
-- ansible.builtin.import_playbook: template.yml # import template(s) used for customization of workload vms - note long imports may block other tasks on SNS
-
-#application deployment and configuration
-- ansible.builtin.import_playbook: pharmacy.yml # deploy and configure pharmacy vm - docker, avassa
-- ansible.builtin.import_playbook: pos.yml # deploy and configure k3s cluster and pos sock-shop
-- ansible.builtin.import_playbook: security.yml # deploy and configure edge security VM and contractor jumphost
-- ansible.builtin.import_playbook: iot.yml # windows10 IoT import template and deploy IoT gateway, share
+  roles:
+    - create_users
+    - template
+    - hypercore_config
+    - schedules
+    - pharmacy
+    - pos 
+    - security 
+    - iot #long running window iot deployment and configuration

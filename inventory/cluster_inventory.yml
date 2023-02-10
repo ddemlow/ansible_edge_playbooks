@@ -7,25 +7,30 @@ all:
             szt15b:
               hosts:
                 "szt15b-01.lab.local": 
-
-        region1:  #production site clusters in region 1 
+                "ia01b-01.lab.local":
+        region1:  #production site clusters in region 1 - indy region 
           children:
             corporate: #corporate owned stores
               hosts:
                 "ozt60b-01.lab.local": #store2
                 "ozt18a-01.lab.local": #store3 
                 "dzt09a-01.lab.local":
-                "ia01b-01.lab.local":
+
             franchise: #franchise owned stores managed as a service
               hosts:
                 "vfz31a-01.lab.local": #store F1
                 "veb120a-01.lab.local": #store F2
-        region2: #production site clusters in region 2
+        region2: #production site clusters in region 2 - westfield region
           hosts:
             "192.168.1.240":  #store101
             "192.168.1.246":  #store102
             "192.168.1.245":  #store103
             "192.168.1.242":  #store104
-        region4: #production site clusters in region 2
+        region4: #production site clusters in region 4 - sfo region
           hosts:
-            '10.200.2.226': #sfo office
+            "10.200.2.226": #sfo office
+            "10.200.2.230":
+            "10.200.2.231":
+            "10.200.2.232":
+            "10.200.2.233":
+            "10.200.2.234":            
