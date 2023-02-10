@@ -16,4 +16,4 @@
             timeZone: America/Indiana/Indianapolis
             httpserver: 10.100.15.187
             dns_servers: 10.6.42.1, 1.1.1.1
-            timeSource: pool.ntp.org
+            timeSource: 10.100.45.29
