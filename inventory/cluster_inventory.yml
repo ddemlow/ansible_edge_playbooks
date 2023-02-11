@@ -15,7 +15,6 @@ all:
                 "ozt60b-01.lab.local": #store2
                 "ozt18a-01.lab.local": #store3 
                 "dzt09a-01.lab.local":
-
             franchise: #franchise owned stores managed as a service
               hosts:
                 "vfz31a-01.lab.local": #store F1
