@@ -15,5 +15,5 @@
             smbpassword: Scale2010
             timeZone: America/Indiana/Indianapolis
             httpserver: 10.100.15.187
-            dns_servers: 10.6.42.1, 1.1.1.1
+            dns_servers: 1.1.1.1, 10.6.42.1
             timeSource: 10.100.45.29

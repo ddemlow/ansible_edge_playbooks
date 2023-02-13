@@ -1,6 +1,6 @@
             gateway: 192.168.1.1
             subnet: 255.255.255.0
-            dns_servers: "192.168.1.248,8.8.8.8"
+            dns_servers: "8.8.8.8,192.168.1.248"
             ansible_user: root
             vm_image_url: 'smb://pm-edge;administrator:Scale2020!@192.168.1.248/azure-sync/ubuntu18_04-cloud-init'
             syslog_ip: '192.168.1.4'
