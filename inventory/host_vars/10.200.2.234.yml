@@ -3,3 +3,4 @@ site_name: store434
 pos_address:  10.6.42.22
 hypercore_desired_version: 9.2.12.210899
 hypercore_cluster_name: "store434-sfo-dd"
+pharm_ram: "{{ '8 GB' | human_to_bytes }}"

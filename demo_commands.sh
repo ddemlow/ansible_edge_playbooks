@@ -1,6 +1,5 @@
-
-#!/bin/zsh
-export SC_HOST="https://ia01b-01.lab.local"  #"https://10.200.2.226"
+#!/bin/bash
+export SC_HOST="https://10.200.2.230" #https://ia01b-01.lab.local"  #
 export SC_USERNAME="admin"
 export SC_PASSWORD="admin"
 clear
@@ -9,9 +8,9 @@ echo "run ansible-inventory --graph"
 echo
 ansible-inventory --graph
 echo
-read -p "Review Iventory - Press any key to run 'ansible-playbook -i ./inventory/cluster_inventory.yml Fleet_HyperCore_Config.yml -l staging'  " -n1 -s
+read -p "Review Iventory - Press any key to run 'ansible-playbook -i ./inventory/cluster_inventory.yml Fleet_HyperCore_Config.yml -l region4'  " -n1 -s
 echo
-ansible-playbook -i ./inventory/cluster_inventory.yml Fleet_HyperCore_Config.yml -l staging
+ansible-playbook -i ./inventory/cluster_inventory.yml Fleet_HyperCore_Config.yml -l region4
 echo
 echo "Review summary - Fleet_HypercoreConfig complete - check pharmacy cloud-init"
 echo 

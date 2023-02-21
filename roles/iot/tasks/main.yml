@@ -1,7 +1,6 @@
 ---
 # tasks file for iot VM
 
-
   - name: Windows IoT template - HTTP import if not present
     scale_computing.hypercore.vm_import:
       vm_name: win10IoT-uefi-cloudbase
