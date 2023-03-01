@@ -5,8 +5,8 @@
             smbusername: remotedc;administrator
             smbpassword: Scale2010
             syslog_ip: '10.6.42.4'
-            timeZone: America/Indianapolis
+            timeZone: US/Eastern
             httpserver: 10.100.15.187
-            dns_servers: 1.1.1.1, 10.6.42.1
+            dns_servers: 8.8.8.8
             timeSource: 10.100.45.29
             pharm_ram: "{{ '8 GB' | human_to_bytes }}"

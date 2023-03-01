@@ -1,7 +1,12 @@
 ---
 # tasks file for hypercore_config role
-  
-- name: set DNS configuration 
+
+- name: set HyperCore Cluster name to "{{ hypercore_cluster_name }}" #fails HyperCore server version=9.1.18.209840 does not match required version ==9.1.21 || >=9.2.11
+  scale_computing.hypercore.cluster_name:
+    name_new: "{{ hypercore_cluster_name }}"
+  ignore_errors: true
+
+- name: set DNS configuration on "{{ hypercore_cluster_name }}" 
   scale_computing.hypercore.dns_config:
     search_domains:
       - lab.local
@@ -9,52 +14,60 @@
       - "{{ dns_servers }}"
     state: set
 
-- name: set NTP server
+- name: set OIDC Azure AD configuration on on "{{ hypercore_cluster_name }}" 
+  scale_computing.hypercore.oidc_config:
+    client_id: "{{ client_id }}"
+    shared_secret: "{{ shared_secret }}"
+    config_url: "{{ config_url }}"
+    scopes: "{{ scopes }}"
+  changed_when: false #will always report change due to secret 
+  ignore_errors: true
+
+- name: set NTP server to  "{{ timeSource }}" on "{{ hypercore_cluster_name }}" 
   scale_computing.hypercore.time_server:
     source: "{{ timeSource }}"
-  ignore_errors: true  #temp workaround
+  ignore_errors: true  #temp workaround for empty uuid on new cluster
   failed_when: false
 
-- name: set time zone
+- name: set time zone to "{{ timeZone }}" on "{{ hypercore_cluster_name }}" 
   scale_computing.hypercore.time_zone:
     zone: "{{ timeZone }}"
   ignore_errors: true
   failed_when: false
 
-- name: set SMTP configuration (authorization disabled)
+- name: set Syslog server to "{{  syslog_ip }}" on "{{ hypercore_cluster_name }}" 
+  scale_computing.hypercore.syslog_server:
+    host: "{{  syslog_ip }}"
+    port: 514
+    protocol: udp
+    state: present  
+  ignore_errors: true
+
+- name: set SMTP configuration "{{ smtpServer }}" (authorization disabled) 
   scale_computing.hypercore.smtp:
     server: "{{ smtpServer }}"
     port: "{{ smtpport }}"
     use_ssl: "{{ smtpuseSSL }}"
-    use_auth: "{{ smtpuseAuth }}"
     from_address: "{{ smtpfromAddress }}"
+  ignore_errors: true
 
-- name: set HyperCore registration  #TODO move to inventory vars
-  scale_computing.hypercore.registration:
-    company_name: Scale Computing
-    contact: Dave Demlow
-    phone: 3173950200
-    email: dave@scalecomputing.com
+- name: set smtp  Email Alert Recipient on "{{ hypercore_cluster_name }}" 
+  scale_computing.hypercore.email_alert:
+    email: "{{ regemail }}"
     state: present
 
+- name: set HyperCore registration 
+  scale_computing.hypercore.registration:
+    company_name: "{{ company_name }}"
+    contact: "{{ contact }}"
+    phone: "{{ phone }}"
+    email: "{{ regemail }}"
+    state: present
+  ignore_errors: true
 
-#  when: dns_config.record | length == 0
+- name: Open support tunnel "{{ support_tunnel}}" on "{{ hypercore_cluster_name }}"
+  scale_computing.hypercore.support_tunnel:
+    state: present
+    code: "{{ support_tunnel }}"
+  when: support_tunnel is true
 
-#- name: check dns config #temp workaround for empty
-#   scale_computing.hypercore.dns_config_info:
-#   register: dns_config
-
-# # - name: check dns config
-# #   debug:
-# #     var: dns_config 
-
-# - name: Post to create dns guid when empty  #temp workaround for empty
-#   scale_computing.hypercore.api:
-#     action: post  
-#     endpoint: /rest/v1/DNSConfig
-#     data:
-#       serverIPs: 
-#         - "{{ dns_servers }}"
-#       searchDomains: 
-#         - "lab.local"
-#   when:  dns_config.record | length == 0    

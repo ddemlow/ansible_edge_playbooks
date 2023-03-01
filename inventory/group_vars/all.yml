@@ -10,6 +10,7 @@
     pos_address:  192.168.1.200
     site_name: site
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    dns_servers: 8.8.8.8
     timeZone: US/Eastern
     timeSource: time.google.com
     winsmbpath: /azure-sync/win10IoT-uefi-cloudbase
@@ -21,4 +22,13 @@
     smtpauthPassword: ""
     smtpfromAddress: "ddemlow@scalecomputing.com"
     pharm_ram: "{{ '2 GB' | human_to_bytes }}" 
+    client_id: d2298ec0-0596-49d2-9554-840a2fe20603
+    shared_secret: ~0lI5n-_8dNbWmrrqqTE1v1iBcfO4__jfx
+    config_url: https://login.microsoftonline.com/76d4c62a-a9ca-4dc2-9187-e2cc4d9abe7f/v2.0/.well-known/openid-configuration
+    scopes: openid+profile
+    company_name: Scale Computing
+    contact: Dave Demlow
+    phone: 3173850200
+    regemail: dave@scalecomputing.com
+
   
