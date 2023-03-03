@@ -1,10 +1,28 @@
 ---
 # tasks file for hypercore_config role
 
+- name: Create ansible user account
+  scale_computing.hypercore.user:
+    cluster_instance:
+      host: "https://{{ inventory_hostname }}"
+      username: "{{ scale_admin_user }}"
+      password: "{{ scale_admin_pass }}"
+    state: present
+    username: ansible
+    password: ansible
+    full_name: ansible
+    session_limit: 0
+    roles:
+      - Admin
+  async: 60
+  poll: 0
+  changed_when: false #password specified always results in change - this blocks that
+
 - name: set HyperCore Cluster name to "{{ hypercore_cluster_name }}" #fails HyperCore server version=9.1.18.209840 does not match required version ==9.1.21 || >=9.2.11
   scale_computing.hypercore.cluster_name:
     name_new: "{{ hypercore_cluster_name }}"
   ignore_errors: true
+  when: hypercore_cluster_name is true
 
 - name: set DNS configuration on "{{ hypercore_cluster_name }}" 
   scale_computing.hypercore.dns_config:

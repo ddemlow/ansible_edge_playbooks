@@ -2,12 +2,10 @@
     scale_pass: ansible
     scale_admin_user: admin
     scale_admin_pass: admin 
-    hypercore_desired_version: 9.1.18.209840
+    hypercore_desired_version: 9.1.23.209840
     http_import_uri: https://github.com/ddemlow/RestAPIExamples/raw/master/
-    http_import_name: ubuntu18_04-cloud-init
-    scale_role: test
+    http_import_name: ubuntu20_04-cloud-init
     support_tunnel: false
-    pos_address:  192.168.1.200
     site_name: site
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
     dns_servers: 8.8.8.8
@@ -30,5 +28,15 @@
     contact: Dave Demlow
     phone: 3173850200
     regemail: dave@scalecomputing.com
+    smbserver: 10.6.42.2
+    smbpath: /azure-sync/ubuntu20_04-cloud-init
+    winsmbpath: /azure-sync/win10IoT-uefi-cloudbase 
+    smbusername: remotedc;administrator
+    smbpassword: Scale2010
+ #   timeZone: America/Indiana/Indianapolis
+    httpserver: 10.100.15.187
+    dns_servers: 8.8.8.8
+    timeSource: 10.100.45.29
+
 
   

@@ -1,6 +1,6 @@
             gateway: 10.0.0.1
             subnet: 255.255.255.0
-            dns_servers: 8.8.8.8, 10.100.252.2
+            dns_servers: 8.8.8.8
             ansible_user: root
             vm_image_url: 'smb://remotedc;administrator:Scale2010@10.100.15.180/azure-sync/ubuntu18_04-cloud-init'
             syslog_ip: '10.6.42.4'

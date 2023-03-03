@@ -1,5 +1,5 @@
 #!/bin/bash
-export SC_HOST="https://10.200.2.230" #https://ia01b-01.lab.local"  #
+export SC_HOST="https://10.200.2.244" #https://ia01b-01.lab.local"  #
 export SC_USERNAME="admin"
 export SC_PASSWORD="admin"
 clear
@@ -31,4 +31,4 @@ ansible-playbook -i ./inventory/hypercore_vm_inventory.yml AzureArcLinuxOnboard.
 echo 
 #read -p "Fleet-Wide Day2 guest configuration - Press any key to run 'ansible-playbook -i ./inventory/cluster_inventory.yml -l staging Fleet_UseHyperCore_Inventory.yml -v' " -n1 -s
 #echo 
-ansible-playbook -i ./inventory/cluster_inventory.yml -l staging Fleet_UseHyperCore_Inventory.yml -v 
+ansible-playbook -i ./inventory/cluster_inventory.yml -l region4 Fleet_UseHyperCore_Inventory.yml -v 

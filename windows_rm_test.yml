@@ -133,17 +133,29 @@
 
     # - name: Download Scale Tools msi
     #   win_get_url:
-    #     url: https://github.com/ddemlow/ansible_edge_playbooks/blob/master/scale-guest-tools/scale-guest-tools-x64.msi
+    #     url: https://github.com/ddemlow/ansible_edge_playbooks/blob/master/scale-guest-tools/scale-guest-tools-x64.msi?raw=true
     #     dest: C:\Scale-guest-tools-x64.msi
-    #     when: (ansible_os_family == 'Windows') 
+#      when: (ansible_os_family == 'Windows') 
 
 #      changed_when: false
 
-    # - name: Install Scale Guest Tools on Windows servers
-    #   win_package:
-    #     path: https://github.com/ddemlow/ansible_edge_playbooks/scale-guest-tools/scale-guest-tools-x64.msi
-    #     state: present
-    # when: (ansible_os_family == 'Windows') 
+# for initial install need to add trusted publisher certutil.exe -addstore "TrustedPublisher" "\\file2016\iso\scalevirtio\rhcert.cer"
+# https://github.com/ddemlow/ansible_edge_playbooks/blob/master/scale-guest-tools/rhcert.cer?raw=true
+
+    - name: Install Scale Guest Tools on Windows servers
+      ansible.windows.win_package:
+        path: https://github.com/ddemlow/ansible_edge_playbooks/blob/master/scale-guest-tools/scale-guest-tools-x64.msi?raw=true 
+        arguments: /passive
+#        state: present
+      when: (ansible_os_family == 'Windows') 
+      register: scaletools
+
+    - debug:
+        msg: '{{ scaletools }}'
+
+
+
+
 
     - name: Download the Connected Machine Agent on Windows servers
       win_get_url:
@@ -195,4 +207,32 @@
 
     - debug:
         msg: '{{ exe_file_version }}'
-#viostor.sys
+      # version in 4.0 - "size": 132680 "checksum": "5f98ead7e504bb9a2e23d1cd3fb92e2b8156e7db"
+      # version from inside windows 100.82.104.17800 - 6/14/2020 - probably tools 3.0
+      #  "size": 124488  "checksum": "31bd1904571169e8cd88cf889b107a2e3b6dfe04"  "creationtime": 1470907512,
+
+
+
+
+#viostor.sys - 100.82.104.18400 6/14/2020 - tools4  100.90.104.21500 12/2/2021
+#vioser.sys 100.82.104.17900 6/14/2020
+
+
+    - name: Get qemu guest agent versions
+      community.windows.win_file_version:
+        path: C:\Program Files\Scale Computing\Qemu Guest Agent\qemu-ga.exe
+      register: qemuga_file_version
+
+    - debug:
+        msg: '{{ qemuga_file_version.win_file_version.file_version }}'
+
+#node scale tools 4.0 version is             "file_version": "6.2.0",  older is 4.2.0.0 - likely scale tools 3.0
+# in windows 7/18/2022 2.40MB
+
+    # - name: Get virtio driver versions  #doesn't support .sys files
+    #   community.windows.win_file_version:
+    #     path: C:\Windows\System32\drivers\netkvm.sys
+    #   register: netkvm_file_version
+
+    # - debug:
+    #     msg: '{{ exe_file_version }}'
