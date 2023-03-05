@@ -109,7 +109,7 @@
   - name: iot Vm desired configuration and state
     scale_computing.hypercore.vm_params:
       vm_name: "iot-{{ site_name }}"
-      memory: "{{ '4 GB' | human_to_bytes }}"
+      memory: "{{ pos_ram }}"
       description: "windows iot server for {{ site_name }}"
       tags:
         - demo
