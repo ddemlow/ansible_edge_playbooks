@@ -2,7 +2,7 @@
     scale_pass: ansible
     scale_admin_user: admin
     scale_admin_pass: admin 
-    hypercore_desired_version: 9.1.23.209840
+    hypercore_desired_version: 9.1.23.210897
     http_import_uri: https://github.com/ddemlow/RestAPIExamples/raw/master/
     http_import_name: ubuntu20_04-cloud-init
     support_tunnel: false

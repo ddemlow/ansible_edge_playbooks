@@ -1,5 +1,5 @@
 hc_alt_host: "szt15b-02.lab.local"
 site_name: staging2
 pos_address:  10.6.42.22
-hypercore_desired_version: 9.2.12.210899
+hypercore_desired_version: 9.2.13.211102
 hypercore_cluster_name: "staging-lab-dd"
