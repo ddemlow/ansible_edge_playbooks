@@ -26,8 +26,10 @@ all:
             "192.168.1.242":  #store104
         region4: #production site clusters in region 4 - sfo region
           hosts:
-            "10.4.127.163": #single node virtual 
-        #     "10.200.2.245": #live ztp
+            "10.4.127.163": #single node virtual
+                site_name: tempsns # can also add node vaiables under host_vars folder
+            "10.4.57.136": #9.1.9 sns virtual
+                site_name: tempsns2
         #     "10.200.2.246":
         #     "10.200.2.244":
         #     "10.200.2.240": #3 node

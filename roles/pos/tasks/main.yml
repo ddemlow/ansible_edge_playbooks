@@ -45,14 +45,6 @@
             
         meta_data: |
           dsmode: local
-          # network-interfaces: |
-          #   auto lo
-          #   iface lo inet loopback
-          #   iface ens3 inet static
-          #     address {{ pos_address }}
-          #     netmask 255.255.255.0
-          #     gateway 192.168.1.1
-              # dns-nameservers 8.8.8.8
           local-hostname: "pos-{{ site_name }}"
     tags:    # tags - allow selective task execution with -t at command line
       - pos

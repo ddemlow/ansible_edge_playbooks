@@ -15,4 +15,4 @@ Utils/exporttest.yml
 Utils/linux_home_main.yml
 Utils/thermostat.yml
 Utils/vm_info.yml
-inventory/group_vars/all.yml
+twingate.sh

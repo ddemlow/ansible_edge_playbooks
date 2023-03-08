@@ -2,6 +2,7 @@
 export SC_HOST="https://10.200.2.244" #https://ia01b-01.lab.local"  #
 export SC_USERNAME="admin"
 export SC_PASSWORD="admin"
+export SC_TIMEOUT=600
 clear
 read -p "View complete inventory run ansible-inventory --graph  " -n1 -s
 echo "run ansible-inventory --graph"
