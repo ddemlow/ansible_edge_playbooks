@@ -1,33 +1,14 @@
 # TODO - check for already in process updates
 
 
-  # - name: Get hypercore cluster info object using REST api
-  #   scale_computing.hypercore.api:
-  #     action: get
-  #     endpoint: /rest/v1/Cluster
-  #   check_mode: false
-  #   register: cluster_info
-  #   tags:
-  #     - checkversion
+  - name: Get hypercore cluster info
+    scale_computing.hypercore.cluster_info:
+    register: cluster_info
+
 
   - name: Get hypercore node info object using REST api
-    scale_computing.hypercore.api:
-      action: get
-      endpoint: /rest/v1/Node
-    check_mode: false
+    scale_computing.hypercore.node_info:
     register: node_info
-    tags:
-      - checkversion
-
-  # - name: Set hypercore clusterName icosVersion and nodeCount as ansible facts # not required - can use vars directly
-  #   ansible.builtin.set_fact:
-  #     clusterName: '{{ item.clusterName }}'
-  #     icosVersion: '{{ item.icosVersion | trim }}'
-  #     nodeCount: '{{ node_info.record | length }}'
-  #   loop: '{{ cluster_info.record | from_yaml_all | list }}'
-  #   tags:
-  #     - checkversion
-
 
   - name: Get a list of updates
     scale_computing.hypercore.version_update_info:
@@ -132,18 +113,31 @@
 
   # - include_tasks: check_hc_update.yml      
 
-  - name: Check update status - will report FAILED-RETRYING until update COMPLETE/TERMINATED
+
+  # - name: Check update status ONCE immediately #debugging to see how quickly this changes from previous 
+  #   scale_computing.hypercore.version_update_status_info:
+  #   register: update_status
+  #   ignore_unreachable: true
+
+  # - name: display immediate update status #noticed it very quickly goest to             "prepare_status": "BEGIN",             "update_status_details": null, sometimes takes longer and shows complete right away - do pause is needed
+  #   debug: 
+  #     var: update_status
+
+  # - name: pause before checking update status to allow download - update status
+  #   ansible.builtin.wait_for:
+  #     timeout: 20
+  #   delegate_to: localhost
+
+
+  - name: Check update progress to "{{ hypercore_desired_version }}" - will report FAILED-RETRYING until update COMPLETE or TERMINATED
     scale_computing.hypercore.version_update_status_info:
     register: update_status
-    until: update_status.record.update_status == "COMPLETE" | default(omit) or update_status.record.update_status == "TERMINATING" | default(omit)
+    until: ( update_status.record.update_status == "COMPLETE" | default(omit) or update_status.record.update_status == "TERMINATING" | default(omit)) and update_status.record.to_version == hypercore_desired_version  #maching to_version ensures new update attempt has started
     retries: 100
     delay: 30
     ignore_unreachable: true
 
-  # - name: Check IF HyperCore version meets desired version late in update # api returns new version before update is completely done - so additional check needed.  won't detect termination 
-  #   scale_computing.hypercore.api:
-  #     action: get
-  #     endpoint: /rest/v1/Cluster
+  # - name: Check IF HyperCore version meets desired version late in update 
   #   register: cluster_info
   #   ignore_errors: yes
   #   ignore_unreachable: yes
