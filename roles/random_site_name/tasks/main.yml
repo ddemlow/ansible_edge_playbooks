@@ -1,0 +1,10 @@
+---
+# tasks file for iso_cleanup
+    # - name:  show site name
+    #   debug:
+    #     var: site_name
+
+    - name: generate random site name if not specified in inventory_hostname  #note not idempotent - duh - its random
+      ansible.builtin.set_fact:
+        site_name: "{{ lookup( 'community.general.random_string', upper=false, numbers=false, special=false, length=4, seed=inventory_hostname ) | lower | trim }}" 
+      when: site_name is undefined

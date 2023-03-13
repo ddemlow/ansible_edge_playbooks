@@ -14,9 +14,10 @@ all:
                 "ozt60b-01.lab.local": #store2
                 "ozt18a-01.lab.local": #store3 
                 "dzt09a-01.lab.local":
-                "sdz31a-01.lab.local":
-                  site_name: sdz31ai
-                  hypercore_desired_version: 9.2.12.210899
+                "wf10a-01.lab.local":
+#                  site_name: vf10a
+                  hypercore_desired_version: 9.1.22.210752
+                  timeZone: Europe/Ljubljana
             franchise: #franchise owned stores managed as a service
               hosts:
                 "vfz31a-01.lab.local": #store F1

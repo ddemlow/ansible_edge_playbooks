@@ -1,17 +1,13 @@
+#hypercore cluster settings fleet defaults
     scale_user: ansible
-    scale_pass: ansible
+    scale_pass: ComplexPassword1234ans #be default ansible masks out what it think is passwords - so using simple password can conflict with VM names - etc. 
     scale_admin_user: admin
     scale_admin_pass: admin 
     hypercore_desired_version: 9.1.23.210897
-    http_import_uri: https://github.com/ddemlow/RestAPIExamples/raw/master/
-    http_import_name: ubuntu20_04-cloud-init
     support_tunnel: false
-    site_name: site
-    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
     dns_servers: 8.8.8.8
     timeZone: US/Eastern
     timeSource: time.google.com
-    winsmbpath: /azure-sync/win10IoT-uefi-cloudbase
     smtpServer: "smtp-relay.gmail.com"
     smtpport: 25
     smtpuseSSL: false
@@ -19,25 +15,34 @@
     smtpauthUser: ""
     smtpauthPassword: ""
     smtpfromAddress: "ddemlow@scalecomputing.com"
-    pharm_ram: "{{ '2 GB' | human_to_bytes }}" 
+
+#oidc settigs fleet defaults
     client_id: d2298ec0-0596-49d2-9554-840a2fe20603
     shared_secret: ~0lI5n-_8dNbWmrrqqTE1v1iBcfO4__jfx
     config_url: https://login.microsoftonline.com/76d4c62a-a9ca-4dc2-9187-e2cc4d9abe7f/v2.0/.well-known/openid-configuration
     scopes: openid+profile
+#cluster registration fleet defaults
     company_name: Scale Computing
     contact: Dave Demlow
     phone: 3173850200
     regemail: dave@scalecomputing.com
-    smbserver: 10.6.42.2
+
+#workload settings
+    pharm_ram: "{{ '2 GB' | human_to_bytes }}" 
+    pos_ram: "{{ '4 GB' | human_to_bytes }}"  
+
+
+#import sources
+    http_import_uri: https://github.com/ddemlow/RestAPIExamples/raw/master/
+    http_import_name: ubuntu20_04-cloud-init
     smbpath: /azure-sync/ubuntu20_04-cloud-init
     winsmbpath: /azure-sync/win10IoT-uefi-cloudbase 
     smbusername: remotedc;administrator
     smbpassword: Scale2010
- #   timeZone: America/Indiana/Indianapolis
     httpserver: 10.100.15.187
-    dns_servers: 8.8.8.8
-    timeSource: 10.100.45.29
-    pos_ram: "{{ '4 GB' | human_to_bytes }}"  
+    smbserver: 10.6.42.2
 
+#ansible config
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
 
   

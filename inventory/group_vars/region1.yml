@@ -4,8 +4,6 @@
             ansible_user: root
             vm_image_url: 'smb://remotedc;administrator:Scale2010@10.100.15.180/azure-sync/ubuntu18_04-cloud-init'
             syslog_ip: '10.6.42.4'
-            scale_user: ansible
-            scale_pass: ansible
             hypercore_role: test
             hypercore_desired_version: 9.2.9.210644
             smbserver: 10.6.42.2

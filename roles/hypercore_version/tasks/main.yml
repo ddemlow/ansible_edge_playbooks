@@ -1,18 +1,60 @@
-# TODO - check for already in process updates
+
+
+  - name: Check if there is already an update in progress
+    scale_computing.hypercore.version_update_status_info:
+    register: update_status_before_update
+
+  - name: Current update status
+    ansible.builtin.debug:
+      var: update_status_before_update
 
 
   - name: Get hypercore cluster info
     scale_computing.hypercore.cluster_info:
     register: cluster_info
 
-
-  - name: Get hypercore node info object using REST api
-    scale_computing.hypercore.node_info:
-    register: node_info
+  - name: Show cluster info
+    ansible.builtin.debug:
+      var: cluster_info
 
   - name: Get a list of updates
     scale_computing.hypercore.version_update_info:
     register: result      
+
+  - name: Get node info
+    scale_computing.hypercore.node_info:
+    register: node_info
+
+  - name: Show node info
+    ansible.builtin.debug:
+      var: node_info
+
+  - name: Check if single-node system - fail if it is
+    ansible.builtin.fail:
+      msg: >-
+        The play should be not be used with single node systems.
+        This system has {{ node_info.records | length }} nodes.
+    when: node_info.records | length == 1
+
+  # ===================================================================
+
+  - name: Update
+    block:
+      - name: Get available updates
+        scale_computing.hypercore.version_update_info:
+        register: available_updates
+
+      - name: Show available updates
+        ansible.builtin.debug:
+          var: available_updates
+
+      - name: Check if desired update is available - fail if not available
+        ansible.builtin.fail:
+          msg: >-
+            Requested update {{ hypercore_desired_version }} is not
+            in available_updates {{ available_updates.records | map(attribute='uuid') | list }}
+        when: not hypercore_desired_version in (available_updates.records | map(attribute='uuid') | list)
+
 
   # - name: Report if out of version compliance (skipped if compliant - host execution will end)
   #   ansible.builtin.debug: 
@@ -26,116 +68,37 @@
   #   ansible.builtin.meta: end_host
   #   when: ( cluster_info.record[0].icosVersion  | trim ) == hypercore_desired_version
 
-  # - name: Get hypercore available updates using REST api
-  #   scale_computing.hypercore.api:
-  #     action: get
-  #     endpoint: /rest/v1/Update
-  #   check_mode: false
-  #   register: update
-  #   tags:
-  #     - checkversion
-
-  # - name: Clear shutdown_vms list # clear array
-  #   ansible.builtin.set_fact:
-  #     apply_update: []
-
-  # - name: Check if desired version is AVAILABLE - set fact apply_update  # if trying a version that doesn't exist - just will do nothing - but don't want to shut down vms
-  #   ansible.builtin.set_fact:
-  #     apply_update: "{{ item.uuid | trim }}"
-  #   when: item.uuid | trim == hypercore_desired_version
-  #   loop: "{{ update.record | from_yaml | list }}"
-  #   ignore_errors: false
-  #   tags:
-  #     - checkversion
-
-  # - name: Output available update version to apply
-  #   ansible.builtin.debug:
-  #     msg: ready to apply {{apply_update}}
-  #   when: apply_update != []
-  #   tags:
-  #     - checkversion
-
-  # - name: Output if NO available update version to apply - host will terminate
-  #   ansible.builtin.debug:
-  #     msg: Update to desired version is not available to cluster {{ inventory_hostname }}
-  #   when: apply_update == []
-  #   tags:
-  #     - checkversion
-
-  # - name: End host processing if no update available
-  #   ansible.builtin.meta: end_host
-  #   when: apply_update == []
-  #   tags:
-  #     - checkversion
-
-#if this far - there is a desired version update available to cluster 
-
-  # - name: check update/update_status.json - will report FAILED-RETRYING until update COMPLETE/TERMINATED #this fails when web server / node is rebooted and until becomes undefined - doesn't keep retrying - thus need outer rescue / loop 
-  #   uri:
-  #     url: http://{{ansible_host}}/update/update_status.json
-  #     method: GET
-  #     return_content: yes
-  #     status_code: 200
-  #     body_format: json
-  #   register: update_status 
-  #   failed_when:  update_status.json.updateStatus.masterState == "IN PROGRESS" | default(omit) # or update_status.json.updateStatus.masterState == "TERMINATING" | default(omit) 
-
-
-  # - name: Get all VMs on cluster if SNS to prepare for shutdown
-  #   scale_computing.hypercore.vm_info:
-  #   register: all_vms
-  #   when: ( node_info.record | length ) == 1
-
-  # - name: Clear shutdown_vms list # clear array
-  #   ansible.builtin.set_fact:
-  #     shutdown_vms: []
-
-  # - name: Find running VMs and add to shutdown_vms fact if SNS
-  #   ansible.builtin.set_fact:
-  #     shutdown_vms: "{{ shutdown_vms + ([{'uuid':vm.uuid, 'vm_name':vm.vm_name, 'power_state':vm.power_state}] if (vm.power_state == 'started') else [])  }}"
-  #   loop: "{{ all_vms.records }}"
-  #   loop_control:
-  #     loop_var: vm
-  #   when: ( node_info.record | length ) == 1
-
-  # - name: Shutdown running VM's if SNS 
-  #   scale_computing.hypercore.vm_params:
-  #     vm_name: "{{ item.vm_name }}"
-  #     power_state: stop
-  #   loop: "{{ shutdown_vms }}"
-  #   when: ( node_info.record | length ) == 1
-
-  - name: apply desired version to cluster or SNS
+  - name: apply desired version to cluster or SNS  #will submit update request and continue without monitoring
     scale_computing.hypercore.version_update:
       icos_version: "{{ hypercore_desired_version }}"
     register: update_desired
-#    when: ( cluster_info.record[0].icosVersion  | trim ) != hypercore_desired_version
 
   # - include_tasks: check_hc_update.yml      
 
-
-  # - name: Check update status ONCE immediately #debugging to see how quickly this changes from previous 
+  # - name: Check update progress to "{{ hypercore_desired_version }}" - will report FAILED-RETRYING until update COMPLETE or TERMINATED
   #   scale_computing.hypercore.version_update_status_info:
   #   register: update_status
+  #   until: ( update_status.record.update_status == "COMPLETE" | default(omit) or update_status.record.update_status == "TERMINATING" | default(omit)) and update_status.record.to_version == hypercore_desired_version | default(omit) #maching to_version ensures new update attempt has started
+  #   retries: 1000
+  #   delay: 5
   #   ignore_unreachable: true
 
-  # - name: display immediate update status #noticed it very quickly goest to             "prepare_status": "BEGIN",             "update_status_details": null, sometimes takes longer and shows complete right away - do pause is needed
-  #   debug: 
-  #     var: update_status
+#try using role to check updates
 
-  # - name: pause before checking update status to allow download - update status
-  #   ansible.builtin.wait_for:
-  #     timeout: 20
-  #   delegate_to: localhost
+  - name: use update check from sns update role #has inner and outer retry loops
+    ansible.builtin.import_role:
+      name: scale_computing.hypercore.version_update_single_node
+      tasks_from: update_status_check.yml
 
 
-  - name: Check update progress to "{{ hypercore_desired_version }}" - will report FAILED-RETRYING until update COMPLETE or TERMINATED
-    scale_computing.hypercore.version_update_status_info:
-    register: update_status
-    until: ( update_status.record.update_status == "COMPLETE" | default(omit) or update_status.record.update_status == "TERMINATING" | default(omit)) and update_status.record.to_version == hypercore_desired_version  #maching to_version ensures new update attempt has started
-    retries: 100
-    delay: 30
-    ignore_unreachable: true
+
+  # - name: Check update progress to "{{ hypercore_desired_version }}" - will report FAILED-RETRYING until update COMPLETE or TERMINATED
+  #   scale_computing.hypercore.version_update_status_info:
+  #   register: update_status
+  #   until: ( update_status.record.update_status == "COMPLETE" | default(omit) or update_status.record.update_status == "TERMINATING" | default(omit)) and update_status.record.to_version == hypercore_desired_version  #maching to_version ensures new update attempt has started
+  #   retries: 100
+  #   delay: 30
+  #   ignore_unreachable: true   
 
   # - name: Check IF HyperCore version meets desired version late in update 
   #   register: cluster_info

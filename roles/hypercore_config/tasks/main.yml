@@ -8,9 +8,9 @@
       username: "{{ scale_admin_user }}"
       password: "{{ scale_admin_pass }}"
     state: present
-    username: ansible
-    password: ansible
-    full_name: ansible
+    username: "{{ scale_user }}"
+    password: "{{ scale_pass }}"
+    full_name: ansible (complex - cluster config role)
     session_limit: 0
     roles:
       - Admin

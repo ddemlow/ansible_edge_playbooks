@@ -2,7 +2,7 @@
 - name: Update a HyperCore single-node system
   hosts: all
   connection: local
-  gather_facts: false
+  gather_facts: true
   # Comment out check_mode=true if you really want to start update.
 #  check_mode: true
   environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
@@ -11,12 +11,45 @@
     SC_PASSWORD: "{{ scale_pass }}"
     SC_TIMEOUT: 600
 
-  vars:
-    desired_version: "{{ hypercore_desired_version }}"
-
   tasks:
+    - name: get all available updates 
+      scale_computing.hypercore.version_update_info:
+      register: version_update 
+
+    - name: determine next available update  #TODO - these fail if no update available
+      ansible.builtin.set_fact:
+        next_update: "{{ ( version_update.records | from_yaml | sort(attribute='revision' ) | sort(attribute='minor_version' ) | sort(attribute='major_version' ) | first ).uuid }}" 
+      when: version_update != []
+
+    - name: determine newest available update 
+      ansible.builtin.set_fact:
+        newest_update: "{{ ( version_update.records | from_yaml | sort(attribute='revision' ) | sort(attribute='minor_version' ) | sort(attribute='major_version' ) | last ).uuid }}" 
+      when: version_update != []
+
+#TODO - add way to get latest wihin current or specific major or minor version - try next, last, some flag to ignore different minor version?
+        
+    - name: Get cluster local timezone setting
+      scale_computing.hypercore.time_zone_info:
+      register: timezone
+
+    - name: get remote hour of day (using remote cluster) timezone # runs data command locally with TZ of remote cluster set 
+      command: "date '+%H'"
+      register: hour_remote
+      environment:
+        TZ: "{{ timezone.record.zone }}"
+      changed_when: false
+
+    - name: debug remote timezone
+      debug:
+        msg: remote time in "{{ timezone.record.zone }}" is "{{ hour_remote.stdout }}" local hour is  "{{ ansible_date_time.hour }}" 
+
     - name: Update HyperCore single-node system to a desired version
       include_role:
         name: scale_computing.hypercore.version_update_single_node
       vars:
-        scale_computing_hypercore_desired_version: "{{ desired_version }}"
+        scale_computing_hypercore_desired_version: 9.1.23.210897 #"{{ next_update }}" #"{{ hypercore_desired_version }}"
+      when: hour_remote.stdout | int >= 16 or hour_remote.stdout | int <= 5
+
+#      when: ansible_date_time.hour|int >= 17 or  ansible_date_time.hour|int <= 5 #this uses local time fact
+
+

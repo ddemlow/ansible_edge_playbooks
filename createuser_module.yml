@@ -12,9 +12,9 @@
   - name: Create ansible user account
     scale_computing.hypercore.user:
       state: present
-      username: ansible
-      password: ansible
-      full_name: ansible
+      username: "{{ scale_user }}"
+      password: "{{ scale_pass }}"
+      full_name: ansible (complex password)
       session_limit: 0
       roles:
         - Admin
