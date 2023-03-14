@@ -1,6 +1,0 @@
-hc_alt_host: "ia01b-02.lab.local"
-site_name: store443
-pos_address:  10.6.42.22
-hypercore_desired_version: 9.2.12.210899
-hypercore_cluster_name: "store443"
-pharm_ram: "{{ '1 GB' | human_to_bytes }}"
