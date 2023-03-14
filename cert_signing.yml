@@ -7,7 +7,7 @@
     SC_HOST: "https://{{ inventory_hostname }}"
     SC_USERNAME: "{{ scale_user }}"
     SC_PASSWORD: "{{ scale_pass }}"
-    SC_TIMEOUT: 120  
+    SC_TIMEOUT: 400 
   vars:
     hypercore_example_check_mode: "{{ ansible_check_mode }}"
 
@@ -16,40 +16,73 @@
       scale_computing.hypercore.cluster_info:
       register: cluster_info
 
-
     # More info about openssl_privatekey module
     # (https://docs.ansible.com/ansible/latest/collections/community/crypto/openssl_privatekey_module.html)
-    - name: generate private key with openSSL
+    - name: generate private key for node with openSSL
       community.crypto.openssl_privatekey:
-        path: private_key_example.pem
+        path: ./ssl/private_key_{{ inventory_hostname }}.pem
+
+    - name: generate CA private key with openSSL #use local machine as CA 
+      community.crypto.openssl_privatekey:
+        path: ./ssl/private_key_CA.pem
 
     # More info about openssl_csr module
     # (https://docs.ansible.com/ansible/latest/collections/community/crypto/openssl_csr_module.html#parameter-authority_cert_issuer)
-    - name: Generate an OpenSSL Certificate Signing Request
+    - name: csr for local ca - Generate an OpenSSL CA Certificate Signing Request
       community.crypto.openssl_csr:
-        path: csr_example.csr
-        privatekey_path: private_key_example.pem
-        common_name: "{{ cluster_info.record.name }}"
+        path: ./ssl/csr_example_ca.csr
+        privatekey_path: ./ssl/private_key_ca.pem
+        common_name: "C02Z13EYLVDL"
         country_name: US
         organization_name: Scale Computing Inc.
-        organizational_unit_name: Engineering Product Strategy
+        organizational_unit_name: Product Strategy
+        email_address: dave@scalecomputing.com
+        state_or_province_name: IN
+        locality_name: Westfield
+
+    - name: key for CA - Generate a Self Signed OpenSSL certificate with generated private_key and certificate signing request
+      community.crypto.x509_certificate:
+        path: ./ssl/certificate_ca.crt
+        csr_path: ./ssl/csr_example_ca.csr
+        privatekey_path: ./ssl/private_key_CA.pem
+        provider: selfsigned
+
+    # More info about openssl_csr module
+    # (https://docs.ansible.com/ansible/latest/collections/community/crypto/openssl_csr_module.html#parameter-authority_cert_issuer)
+    - name: csr for node - Generate an OpenSSL Certificate Signing Request
+      community.crypto.openssl_csr:
+        path: ./ssl/csr_{{ inventory_hostname }}.csr
+        privatekey_path: ./ssl/private_key_{{ inventory_hostname }}.pem
+        common_name: "{{ inventory_hostname }}"  #if using IP in inventory - cert will not be valid
+        country_name: US
+        organization_name: Scale Computing Inc.
+        organizational_unit_name: Product Strategy
         email_address: dave@scalecomputing.com
         state_or_province_name: IN
         locality_name: Westfield
 
     # More info about x509_certificate module
     # (https://docs.ansible.com/ansible/latest/collections/community/crypto/x509_certificate_module.html#ansible-collections-community-crypto-x509-certificate-module)
-    - name: Generate a Self Signed OpenSSL certificate with generated private_key and certificate signing request
-      community.crypto.x509_certificate:
-        path: certificate_example.crt
-        csr_path: csr_example.csr
-        privatekey_path: private_key_example.pem
-        provider: selfsigned
+    # - name: Generate a Self Signed OpenSSL certificate with generated private_key and certificate signing request
+    #   community.crypto.x509_certificate:
+    #     path: certificate_example.crt
+    #     csr_path: csr_example.csr
+    #     privatekey_path: private_key_example.pem
+    #     provider: selfsigned # if yo want fully self signed cert vs. using private local CA to sign 
 
-    - name: upload generated certificate and private_key with certificate module
+    - name: Generate a ownca OpenSSL certificate with generated private_key and certificate signing request
+      community.crypto.x509_certificate:
+        path: ./ssl/ownca_certificate_{{ inventory_hostname }}.crt
+        csr_path: ./ssl/csr_{{ inventory_hostname }}.csr
+        privatekey_path: ./ssl/private_key_{{ inventory_hostname }}.pem
+        provider: ownca
+        ownca_path: ./ssl/certificate_ca.crt
+        ownca_privatekey_path: ./ssl/private_key_CA.pem
+
+    - name: Upload generated certificate and private_key with certificate module
       scale_computing.hypercore.certificate:
-        private_key: "{{ lookup('file', 'private_key_example.pem') }}"
-        certificate: "{{ lookup('file', 'certificate_example.crt') }}"
+        private_key: "{{ lookup('file', './ssl/private_key_{{ inventory_hostname }}.pem') }}"
+        certificate: "{{ lookup('file', './ssl/ownca_certificate_{{ inventory_hostname }}.crt') }}"
       register: certificate_info
       # This is problematic, it would restart API server
 #      check_mode: "{{ hypercore_example_check_mode }}"
