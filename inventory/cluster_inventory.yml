@@ -24,10 +24,10 @@ all:
                 "veb120a-01.lab.local": #store F2
         region2: #production site clusters in region 2 - westfield region
           hosts:
-            "192.168.1.240":  #store101
-            "192.168.1.246":  #store102
-            "192.168.1.245":  #store103
-            "192.168.1.242":  #store104
+            "192.168.1.240.nip.io":  #store101
+            "192.168.1.246.nip.io":  #store102
+            "192.168.1.245.nip.io":  #store103
+            "192.168.1.242.nip.io":  #store104
         region4: #production site clusters in region 4 - sfo region
           hosts:
             "10.4.127.163": #single node virtual
