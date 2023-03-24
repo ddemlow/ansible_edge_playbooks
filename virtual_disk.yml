@@ -11,18 +11,14 @@
     SC_PASSWORD: "{{ scale_pass }}"
     SC_TIMEOUT: 2000000
   vars:
-    #image_url: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64-disk-kvm.img"
     image_url: 
       - "https://github.com/ddemlow/RestAPIExamples/raw/master/ubuntu20_04-cloud-init/ubuntu20cloudimage.qcow2"
 #      - "https://github.lab.local/ddemlow/k8sdeploy/raw/master/ubuntu18_04-cloud-init/ubuntu18cloudimage.qcow2"
 #      - "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.vmdk"
 #      - "https://github.com/ddemlow/RestAPIExamples/raw/master/RHEL9/RHEL9-disk.qcow2"
-    image_filename: "{{ image_url[0] | split('/') | last }}"
+#      -  "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64-disk-kvm.img"
+    image_filename: "{{ image_url[0] | split('/') | last }}"  #only works for first in list
     image_path: "/home/ubuntu/"
-    local_filename:  #or do I want everything in a directory - wildcard - probably that
-      - focal-server-cloudimg-amd64-disk-kvm.img
-      - win-iot-boot.qcow2 
-      - convertedfocal-server-cloudimg-amd64.img #convertedNested_ESXi7.0u3c_Appliance_Template_v1-disk1.vmdk #livecd.ubuntu-cpc.azure.vhd # WinDev2301Eval.vhdx ##convertedfocal-server-cloudimg-amd64.vmdk #small.qcow2 fails and leaves uploading-small.qcow2
     image_remove_old: false
     template_remove_old: false
 
@@ -31,7 +27,7 @@
     #   stat:
     #     path: "{{image_path}}{{ image_url[0] | split('/') | last }}"
     #   register: filename
-    - name: Download Virtual Disk {{ image_filename }} from URL
+    - name: Download Virtual Disks from URL list
       ansible.builtin.get_url: #TODO: what if file doesn't download completely?
         url: "{{ item }}"
         dest: "{{image_path}}{{ item | split('/') | last }}"
