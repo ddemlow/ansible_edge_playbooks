@@ -1,5 +1,5 @@
 ---
-- name: test virtual disk upload using hypercore_api module (requires 1.1.0 collection with api put) - tested on 9.2.12
+- name: test virtual disk upload using hypercore_virtual_disk module 
   hosts: all
   become: false
   gather_facts: false
@@ -9,36 +9,37 @@
     SC_HOST: "https://{{ inventory_hostname }}"
     SC_USERNAME: "{{ scale_user }}"
     SC_PASSWORD: "{{ scale_pass }}"
-    SC_TIMEOUT: 600
+    SC_TIMEOUT: 2000000
   vars:
     #image_url: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64-disk-kvm.img"
-    #image_url: "https://github.com/ddemlow/RestAPIExamples/raw/master/ubuntu20_04-cloud-init/ubuntu20cloudimage.qcow2"
-    #image_url: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.vmdk"
-    #image_url: "https://github.com/ddemlow/RestAPIExamples/raw/master/RHEL9/RHEL9-disk.qcow2"
-    #image_filename: "{{ image_url | split('/') | last }}"
-    image_path: "/Users/davedemlow/Downloads/"
-    image_filename: win-iot-boot.qcow2 #convertedfocal-server-cloudimg-amd64.img #convertedNested_ESXi7.0u3c_Appliance_Template_v1-disk1.vmdk #livecd.ubuntu-cpc.azure.vhd # WinDev2301Eval.vhdx ##convertedfocal-server-cloudimg-amd64.vmdk #small.qcow2 fails and leaves uploading-small.qcow2
-    #image_filename: "turnkey-ansible-16.1-buster-amd64.vmdk"
-    #image_filename: ArchLinux.vmdk #RHEL9IBMcomposer.qcow2
+    image_url: 
+      - "https://github.com/ddemlow/RestAPIExamples/raw/master/ubuntu20_04-cloud-init/ubuntu20cloudimage.qcow2"
+#      - "https://github.lab.local/ddemlow/k8sdeploy/raw/master/ubuntu18_04-cloud-init/ubuntu18cloudimage.qcow2"
+#      - "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.vmdk"
+#      - "https://github.com/ddemlow/RestAPIExamples/raw/master/RHEL9/RHEL9-disk.qcow2"
+    image_filename: "{{ image_url[0] | split('/') | last }}"
+    image_path: "/home/ubuntu/"
+    local_filename:  #or do I want everything in a directory - wildcard - probably that
+      - focal-server-cloudimg-amd64-disk-kvm.img
+      - win-iot-boot.qcow2 
+      - convertedfocal-server-cloudimg-amd64.img #convertedNested_ESXi7.0u3c_Appliance_Template_v1-disk1.vmdk #livecd.ubuntu-cpc.azure.vhd # WinDev2301Eval.vhdx ##convertedfocal-server-cloudimg-amd64.vmdk #small.qcow2 fails and leaves uploading-small.qcow2
     image_remove_old: false
-    template_remove_old: false 
+    template_remove_old: false
 
   tasks:
-    - name: check if "{{ image_filename }}" exists #fail will stop playbook
-      stat:
-        path: "{{image_path}}{{ image_filename }}"
-      register: filename
-
-#todo - check error of uploading-{{ image_filename }} from previous failed uploads
-
+    # - name: check if "{{ image_filename }}" exists #fail will stop playbook
+    #   stat:
+    #     path: "{{image_path}}{{ image_url[0] | split('/') | last }}"
+    #   register: filename
     - name: Download Virtual Disk {{ image_filename }} from URL
       ansible.builtin.get_url: #TODO: what if file doesn't download completely?
-        url: "{{ image_url }}"
-        dest: "{{image_path}}{{ image_filename }}"
+        url: "{{ item }}"
+        dest: "{{image_path}}{{ item | split('/') | last }}"
         timeout: 10000
-      when: not filename.stat.exists
+        validate_certs: false
+      when: not "{{image_path}}{{ item | split('/') | last }}"
       register: download
-#note download.stat.size should have capacityBytes
+      loop: "{{ image_url }}"
 
     - name: delete template vm #for debugging only 
       scale_computing.hypercore.vm:
@@ -47,152 +48,153 @@
       when: template_remove_old
 
     - name: Get Information About the uploaded Virtual Disk in HyperCore
-      scale_computing.hypercore.api:
-        action: get
-        endpoint: "/rest/v1/VirtualDisk/"
+      scale_computing.hypercore.virtual_disk_info:   
       register: diskmedia
 
     - name: Show uploaded disk info
       debug:
         var: diskmedia
 
-    - name: Clear diskmedia_uuid to begin media scan # clear array before loop to populate
-      ansible.builtin.set_fact:
-        diskmedia_uuid: []   
-
-    - name: Loop to scan existing Virtual Disks for image_filename {{ image_filename}} #note duplicate entries are possible
-      ansible.builtin.set_fact:
-        diskmedia_uuid: "{{ diskmedia_uuid + ([{'uuid':item.uuid | trim, 'name':item.name, 'capacityBytes':item.capacityBytes  }]) }}" 
-      when: diskmedia !=[] and item.name | trim == image_filename
-      loop: "{{ diskmedia.record | from_yaml | list }}"
-      loop_control:
-        loop_var: item
-      ignore_errors: false
-
-    - name: Show matching  disk info
-      ansible.builtin.debug:
-        msg: Disk image name already found on cluster "{{ diskmedia_uuid }}" 
-      when: diskmedia_uuid != []
-
-    - name: Set diskmedia to existing UUID
-      ansible.builtin.set_fact:
-        diskmedia: "{{ diskmedia_uuid[0].uuid | trim }}"
-      when: diskmedia_uuid != []
-
-    - name: Set diskmedia capacity
-      ansible.builtin.set_fact:
-        diskcapacity : "{{ diskmedia_uuid[0].capacityBytes }}"
-      when: diskmedia_uuid != []
-
-    - name: Delete existing virtual disk 
-      scale_computing.hypercore.api:
-        action: delete
-        endpoint: "/rest/v1/VirtualDisk/{{ diskmedia_uuid[0].uuid | trim }}"
-      when: (diskmedia_uuid != []) and image_remove_old
+    - name: Delete existing virtual disk "{{ item | split('/') | last }}" 
+      scale_computing.hypercore.virtual_disk:
+        name: "{{ item | split('/') | last }}"
+        state: absent
+      when: image_remove_old
       register: deleted
+      loop: "{{ image_url }}"
 
-    - name: Clear diskmedia_uuid after delete
-      ansible.builtin.set_fact:
-        diskmedia_uuid: []
-      when: deleted.changed
+    - name: Delete existing uploading-"{{ item | split('/') | last }}" virtual disk 
+      scale_computing.hypercore.virtual_disk:
+        name: "uploading-{{ item | split('/') | last }}"
+        state: absent
+      when: image_remove_old
+      register: deleted
+      loop: "{{ image_url }}"      
 
-    - name: Get the Virtual Disk size
-      ansible.builtin.stat:
-        # path: /tmp/{{ image_filename }} #TODO
-        path: "{{ image_path }}{{ image_filename }}"
-      register: disk_file_info
-      when: diskmedia_uuid == []
-    
-    - name: Set diskmedia capacity
-      ansible.builtin.set_fact:
-        diskcapacity : "{{ disk_file_info.stat.size }}"
-      when: diskmedia_uuid == []    
-
-    - name: Upload Virtual Disk {{ image_filename }} to HyperCore
-      scale_computing.hypercore.api:
-        action: put
-        endpoint: "/rest/v1/VirtualDisk/upload"
-        data:
-          filename: "{{ image_filename }}"
-          filesize: "{{ disk_file_info.stat.size }}"
-        source: "{{image_path}}{{ image_filename }}"
-      register: uploadResult
-      when: diskmedia_uuid == []
-      until: uploadResult == changed  #(uploadResult.msg not search("EOF"))  # or (ubuntu20_04.msg is search("already exists"))
-      retries: 50
-
-    - name: Set diskmedia_uuid to uploaded UUID
-      ansible.builtin.set_fact:
-        diskmedia: "{{ uploadResult.record.createdUUID }}"
-      when: uploadResult.changed
-
-
-    - name: Get Information about the uploaded Virtual Disk in HyperCore
-      scale_computing.hypercore.api:
-        action: get
-        endpoint: "/rest/v1/VirtualDisk/{{ uploadResult.record.createdUUID }}"
-      register: result
-      when: uploadResult.changed
-
-    - name: Show uploaded disk info
-      ansible.builtin.debug:
-        var: result
-      when: uploadResult.changed
-
-    - name: Create template vm and will delete attached disks not specified below
-      scale_computing.hypercore.vm:
-        vm_name: template
-        description: Demo VM
+    - name: Upload Virtual Disk {{ item | split('/') | last }}" to HyperCore "{{ inventory_hostname }}"
+      scale_computing.hypercore.virtual_disk:
+        name: "{{ item | split('/') | last }}"
+        source: "{{image_path}}{{ item | split('/') | last }}"
         state: present
-        tags:
-          - vsdupload
-        memory: "{{ '1 GB' | human_to_bytes }}"
-        vcpu: 2
-        power_state: stop
-        disks:
-          - type: ide_cdrom
-            disk_slot: 0
-        nics:
-          - vlan: 0
-            type: virtio
-      register: template
+      register: uploadResult
+      loop: "{{ image_url }}" 
+      ignore_errors: true
 
-    - name: show template data
-      ansible.builtin.debug:
-        var: template
+    - name: search for uploadable virtual disk files in "{{ image_path }}"
+      ansible.builtin.find:
+        paths: "{{ image_path }}"
+        hidden: false
+        recurse: false
+        file_type: any
+        patterns: 
+         - '*.qcow2'
+         - '*.vmdk'
+         - '*.vhd'
+         - '*.img'
+         - '*.vhdx'
+      register: uploadable_files
 
-    - name: show diskmedia data
-      ansible.builtin.debug:
-        var: diskmedia
+    - name: delete uploading- from "{{ image_path }}"" search for HyperCore "{{ inventory_hostname }}" #
+      scale_computing.hypercore.virtual_disk:
+        name: "uploading-{{ item.path | split('/') | last }}"
+        source: "{{ item.path }}" 
+        state: absent
+      register: uploadResult
+      loop: "{{ uploadable_files.files }}"
+      ignore_errors: true
+
+    - name: delete existing virtual disks - from "{{ image_path }}" forHyperCore "{{ inventory_hostname }}" #500 error if previous upload still converting 
+      scale_computing.hypercore.virtual_disk:
+        name: "{{ item.path | split('/') | last }}"
+        source: "{{ item.path }}" 
+        state: absent
+      register: uploadResult
+      loop: "{{ uploadable_files.files }}"               
+      when: image_remove_old
+      ignore_errors: true
+
+    - name: Upload local Virtual Disk from path search {{ image_path }}" to HyperCore "{{ inventory_hostname }}"
+      scale_computing.hypercore.virtual_disk:
+        name: "{{ item.path | split('/') | last }}"
+        source: "{{ item.path }}" 
+        state: present
+      register: uploadResult
+      loop: "{{ uploadable_files.files }}" 
+      ignore_errors: true
 
 
-    - name: Attach Virtual Disk
-      scale_computing.hypercore.api:
-        action: post
-        endpoint: "/rest/v1/VirtualDisk/{{ diskmedia }}/attach"
-        data:
-          options:
-            regenerateDiskID: true
-            readOnly: false
-          template:
-            virDomainUUID: "{{ template.record[0].uuid }}"
-            type: "VIRTIO_DISK"
-            slot: -1
-            capacity: 200000000000
-            tieringPriorityFactor: 8
-      register: diskattached
+    # - name: Set diskmedia_uuid to uploaded UUID
+    #   ansible.builtin.set_fact:
+    #     diskmedia: "{{ uploadResult.record.createdUUID }}"
+    #   when: uploadResult.changed
 
-# capacity 0 should be documented? just preserves existing size - useful since capacity is required 
-# slot -1 is default - what is that? 
 
-    - name: display template vm
-      scale_computing.hypercore.vm_info:
-        vm_name: template
-      register: template
+    # - name: Get Information about the uploaded Virtual Disk in HyperCore
+    #   scale_computing.hypercore.api:
+    #     action: get
+    #     endpoint: "/rest/v1/VirtualDisk/{{ uploadResult.record.createdUUID }}"
+    #   register: result
+    #   when: uploadResult.changed
 
-# HYPERCORE BUG? appears we boot off disk even though "boot_devices": [],
+    # - name: Show uploaded disk info
+    #   ansible.builtin.debug:
+    #     var: result
+    #   when: uploadResult.changed
 
-    - name: show template data
-      ansible.builtin.debug:
-        var: template    
+#     - name: Create template vm and will delete attached disks not specified below
+#       scale_computing.hypercore.vm:
+#         vm_name: template
+#         description: Demo VM
+#         state: present
+#         tags:
+#           - vsdupload
+#         memory: "{{ '1 GB' | human_to_bytes }}"
+#         vcpu: 2
+#         power_state: stop
+#         disks:
+#           - type: ide_cdrom
+#             disk_slot: 0
+#         nics:
+#           - vlan: 0
+#             type: virtio
+#       register: template
+
+#     - name: show template data
+#       ansible.builtin.debug:
+#         var: template
+
+#     - name: show diskmedia data
+#       ansible.builtin.debug:
+#         var: diskmedia
+
+
+#     - name: Attach Virtual Disk
+#       scale_computing.hypercore.api:
+#         action: post
+#         endpoint: "/rest/v1/VirtualDisk/{{ diskmedia }}/attach"
+#         data:
+#           options:
+#             regenerateDiskID: true
+#             readOnly: false
+#           template:
+#             virDomainUUID: "{{ template.record[0].uuid }}"
+#             type: "VIRTIO_DISK"
+#             slot: -1
+#             capacity: 200000000000
+#             tieringPriorityFactor: 8
+#       register: diskattached
+
+# # capacity 0 should be documented? just preserves existing size - useful since capacity is required 
+# # slot -1 is default - what is that? 
+
+#     - name: display template vm
+#       scale_computing.hypercore.vm_info:
+#         vm_name: template
+#       register: template
+
+# # HYPERCORE BUG? appears we boot off disk even though "boot_devices": [],
+
+#     - name: show template data
+#       ansible.builtin.debug:
+#         var: template    
 
