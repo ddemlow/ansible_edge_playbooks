@@ -12,9 +12,5 @@
     
   roles:
     - check-ide # check for vms with ide disks
-    - syslog_config #check that desired syslog server is (last) in list - and correct
-    - schedules # check the each cluster has expected snapshot schedules created correctly / not modifiedi
     - vm_cleanup # cleans up list of formerly used VMs
-    - timeZone # checks cluster timezone vs. inventory timeZone variable
-    - timeSource # checks cluster timeesource vs. inventory timeSource variable  
     - hypercore_version # checks and corrects hypercore version vs. desired

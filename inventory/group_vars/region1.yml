@@ -1,3 +1,4 @@
+            hypercore_desired_version: 9.2.14.211224
             gateway: 10.0.0.1
             subnet: 255.255.255.0
             dns-nameserver: 192.168.1.248
@@ -5,7 +6,6 @@
             vm_image_url: 'smb://remotedc;administrator:Scale2010@10.100.15.180/azure-sync/ubuntu18_04-cloud-init'
             syslog_ip: '10.6.42.4'
             hypercore_role: test
-            hypercore_desired_version: 9.2.9.210644
             smbserver: 10.6.42.2
             smbpath: /azure-sync/ubuntu20_04-cloud-init
             winsmbpath: /azure-sync/win10IoT-uefi-cloudbase 

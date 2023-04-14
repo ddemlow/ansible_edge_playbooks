@@ -22,30 +22,31 @@
     poll: 0
     changed_when: false #password specified always results in change - this blocks that
 
-  # - name: Create acronis user account
-  #   scale_computing.hypercore.user:
-  #     state: present
-  #     username: acronis
-  #     password: acronis
-  #     full_name: acronis
-  #     session_limit: 0
-  #     roles:
-  #       - Backup
-  #       - VM Create/Edit
-  #       - VM Power Controls
-  #   async: 60
-  #   poll: 0
-  #   changed_when: false
+  - name: Create acronis user account
+    scale_computing.hypercore.user:
+      state: present
+      username: acronis
+      password: acronis
+      full_name: acronis
+      session_limit: 0
+      roles:
+        - Read
+        - Backup
+        - VM Create/Edit
+        - VM Power Controls
+    async: 60
+    poll: 0
+    changed_when: false
         
 
-  # - name: remove former users
-  #   scale_computing.hypercore.user:
-  #     state: absent
-  #     username: "{{ item }}"
-  #   loop:
-  #     - bcnu 
-  #     - badIT
-  #     - byebye
-  #   async: 60
-  #   poll: 0
-  #   changed_when: false
+  - name: remove former users
+    scale_computing.hypercore.user:
+      state: absent
+      username: "{{ item }}"
+    loop:
+      - bcnu 
+      - badIT
+      - byebye
+    async: 60
+    poll: 0
+    changed_when: false
