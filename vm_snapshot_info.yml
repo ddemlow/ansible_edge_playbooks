@@ -1,0 +1,21 @@
+---
+- name: test vm_snapshot_info
+  hosts: all
+  become: false
+  gather_facts: false
+  connection: ansible.builtin.local
+  strategy: host_pinned
+  environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user }}"
+    SC_PASSWORD: "{{ scale_pass }}"
+    SC_TIMEOUT: 600
+
+  tasks:
+    - name: get snapshot info
+      scale_computing.hypercore.vm_snapshot_info:
+      register: snapshot
+
+    - name: debug
+      debug: 
+        var: snapshot

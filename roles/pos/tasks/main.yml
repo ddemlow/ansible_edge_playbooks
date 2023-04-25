@@ -55,7 +55,7 @@
       items:
         - disk_slot: 0
           type: virtio_disk
-          size: "{{ '300 GB' | human_to_bytes }}"
+          size: "{{ '400 GB' | human_to_bytes }}"
           tiering_priority_factor: 1
       state: present
     tags:    # tags - allow selective task execution with -t at command line

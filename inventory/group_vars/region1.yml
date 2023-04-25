@@ -1,4 +1,4 @@
-            hypercore_desired_version: 9.2.14.211224
+#            hypercore_desired_version: 9.2.14.211224
             gateway: 10.0.0.1
             subnet: 255.255.255.0
             dns-nameserver: 192.168.1.248

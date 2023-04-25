@@ -19,9 +19,10 @@ all:
             franchise: #franchise owned stores managed as a service
               hosts:
                 "vfz31a-01.lab.local": #store F1
-                  hypercore_desired_version: 9.2.16.211405
                 "veb120a-01.lab.local": #store F2
                   hypercore_desired_version: 9.2.16.211405
+              vars:
+                hypercore_desired_version: 9.2.16.211405
         region2: #production site clusters in region 2 - westfield region
           hosts:
             "192.168.1.240.nip.io":  #store101
