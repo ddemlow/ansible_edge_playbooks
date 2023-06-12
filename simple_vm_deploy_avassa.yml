@@ -6,7 +6,7 @@
     template_name: debian11
     image_url: 
       - "https://cloud.debian.org/images/cloud/bullseye/latest/debian-11-generic-amd64.qcow2"
-    image_path: "~/tmp" #path to download file
+    image_path: "/Users/davedemlow/tmp/" #~/tmp/" #path to download file
     avassa_ct_api: "api.sc-platform.sc-platform.avassa.net"
     avassa_ct_user: "supd@scalecomputing.com"
     avassa_ct_password: "supdsupd"
@@ -30,7 +30,7 @@
     - name: Download Virtual Disk(s) image from URL list
       ansible.builtin.get_url:
         url: "{{ item }}"
-        dest: "{{ image_path }}{{ item | split('/') | last }}"
+        dest: "{{ image_path }}{{ image_name}}"
         timeout: 10000
         validate_certs: false
         force: false
@@ -39,12 +39,12 @@
 
     - name: Upload Virtual Disk {{ item | split('/') | last }}" to HyperCore "{{ inventory_hostname }}"
       scale_computing.hypercore.virtual_disk:
-        name: "{{ item | split('/') | last }}"
-        source: "{{ image_path }}{{ item | split('/') | last }}"
+        name: "{{ image_name }}"
+        source: "{{ image_path }}{{ image_name }}"
         state: present
       register: uploadResult
       loop: "{{ image_url }}" 
-      ignore_errors: true
+      ignore_errors: false
 
     - name: Create (or update) "{{ image_name }}" template vm 
       scale_computing.hypercore.vm:
@@ -62,8 +62,6 @@
         disks:
           - type: ide_cdrom
             disk_slot: 0
-          - type: virtio_disk
-            disk_slot: 1
         nics:
           - vlan: 0
             type: virtio
