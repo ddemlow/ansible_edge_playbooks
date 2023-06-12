@@ -1,12 +1,16 @@
 ---
-- name: Simple vm deployment from Ubuntu template with Avassa Edge Enforcer #edit vmname variable - use -l filter to specify cluster vs. full inventory
-  hosts: edge
-  vars:  #TODO currently are several hardcoded variables within playbook below that could be moved here or to inventory as in other examples
-    vmname: avassa
-    template_name: ubuntu20_04
+- name: Simple vm deployment of Debian 11 template and  Avassa Edge Enforcer # use -l filter to specify cluster vs. full inventory
+  hosts: all 
+  vars:  
+    vmname: "{{ site_name }}-avassa" # generally would use site_name pattern from inventory for fleet deployment
+    template_name: debian11
     image_url: 
-      - "https://github.com/ddemlow/RestAPIExamples/raw/master/ubuntu20_04-cloud-init/ubuntu20cloudimage.qcow2"
-    image_path: "/Users/davedemlow/Downloads/" #path to download file
+      - "https://cloud.debian.org/images/cloud/bullseye/latest/debian-11-generic-amd64.qcow2"
+    image_path: "~/tmp" #path to download file
+    avassa_ct_api: "api.sc-platform.sc-platform.avassa.net"
+    avassa_ct_user: "supd@scalecomputing.com"
+    avassa_ct_password: "supdsupd"
+    avassa_ct_deployment: "popcorn-deployment"
   connection: local
   gather_facts: false
   strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
@@ -24,9 +28,9 @@
       loop: "{{ image_url }}"
 
     - name: Download Virtual Disk(s) image from URL list
-      ansible.builtin.get_url: 
+      ansible.builtin.get_url:
         url: "{{ item }}"
-        dest: "{{image_path}}{{ item | split('/') | last }}"
+        dest: "{{ image_path }}{{ item | split('/') | last }}"
         timeout: 10000
         validate_certs: false
         force: false
@@ -36,45 +40,40 @@
     - name: Upload Virtual Disk {{ item | split('/') | last }}" to HyperCore "{{ inventory_hostname }}"
       scale_computing.hypercore.virtual_disk:
         name: "{{ item | split('/') | last }}"
-        source: "{{image_path}}{{ item | split('/') | last }}"
+        source: "{{ image_path }}{{ item | split('/') | last }}"
         state: present
       register: uploadResult
       loop: "{{ image_url }}" 
       ignore_errors: true
 
-    - name: Create ubuntu20_04 template vm 
+    - name: Create (or update) "{{ image_name }}" template vm 
       scale_computing.hypercore.vm:
-        vm_name: "{{ template_name }}"
-        description: "{{ template_name }} template "
+        vm_name: "{{ image_name }}"
+        description: "{{ image_url[0] }} template "
         state: present
         tags:
           - template
           - avassa
           - vsdupload
+          - serial
         memory: "{{ '1 GB' | human_to_bytes }}"
         vcpu: 0 # makes template vm unbootable - must change cpu on cloned vm 
         power_state: stop
         disks:
           - type: ide_cdrom
             disk_slot: 0
+          - type: virtio_disk
+            disk_slot: 1
         nics:
           - vlan: 0
             type: virtio
         operating_system:  os_other
       register: template
 
-      # - name: show template data
-      #   ansible.builtin.debug:
-      #     var: template
-
-      # - name: show diskmedia data
-      #   ansible.builtin.debug:
-      #     var: diskmedia
-
-    - name: Attach uploaded virtual disk to ubuntu20_04 template 
+    - name: Attach uploaded virtual disk to  "{{ image_name }}" template  # this will attach latest image every time - should there be way to only attach if not exist?
       scale_computing.hypercore.virtual_disk_attach:
         name: "{{ image_name }}"
-        vm_name: "{{ template_name }}"
+        vm_name: "{{ image_name }}"
         disk:
           type: virtio_disk
           disk_slot: 1
@@ -83,7 +82,7 @@
 
     - name: Set attached vsd device as bootable
       scale_computing.hypercore.vm_boot_devices:
-        vm_name: "{{ template_name }}"
+        vm_name: "{{ image_name }}"
         items:
           - type: virtio_disk
             disk_slot: 1
@@ -92,10 +91,10 @@
 
 # template complete! 
 
-    - name: Clone and configure vm "{{ vmname }}"
+    - name: Clone and configure vm "{{ vmname }}" # will only clone if "{{ vmname }}" does not already exist
       scale_computing.hypercore.vm_clone:
         vm_name: "{{ vmname }}"
-        source_vm_name: "{{ template_name }}"
+        source_vm_name: "{{ image_name }}"
         cloud_init:
           user_data: |
             #cloud-config
@@ -106,47 +105,36 @@
                 - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDihWWhjoPj8KVLtdLDwNJQ71zi9An0iUFjefRWu2Eju ddemlow@scalecomputing.com
                 - MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxTiBEMhRymL0yqDAGF33DVwzfqp2CcyKJOOq5A862ocnOKRVhKoaU6ZfXnyLanqbylMKut5kuCRfq51nR7eBGpM6V0IUe5wlgvRB1HtXJHDBedclRaPWa8XQikk8AOscbmGufcs10TEFDH45L4tJd3ym+VD8mKp7PIge6yvhxaQaPfGx3MafEPm/ISpDLxbNueTIHBUt3WE7lfPXZ3owHIaEEht3L7hXvEqG801x/snT7Y1NJwfEpfD2EClDwoHHdln+UzJyxsbGZgmCgTVmXvnaz833lb2pEvmzfRZQybuXMtFB4/q8evc0CfIhqIcRaLzdImxgV
             disable_root: false # allow ssh root login
-            apt: {sources: {docker.list: {source: 'deb [arch=amd64] https://download.docker.com/linux/ubuntu $RELEASE stable', keyid: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88}}}
-            packages: [qemu-guest-agent, docker-ce, docker-ce-cli, docker-compose, unzip]
-            bootcmd:
-              - [ sh, -c, 'sudo echo GRUB_CMDLINE_LINUX="nomodeset" >> /etc/default/grub' ]
-              - [ sh, -c, 'sudo echo GRUB_GFXPAYLOAD_LINUX="1024x768" >> /etc/default/grub' ]
-              - [ sh, -c, 'sudo echo GRUB_DISABLE_LINUX_UUID=true >> /etc/default/grub' ]
-              - [ sh, -c, 'sudo update-grub' ]
             runcmd:
-              - [ systemctl, restart, --no-block, qemu-guest-agent ]
-              - 'usermod -aG docker ubuntu'
-              - 'curl -s https://api.sc-platform.sc-platform.avassa.net/install | /bin/sh -s -- -y -c'
+              - 'curl -s "https://{{ avassa_ct_api }}"/install | /bin/sh -s -- -y -c'
               - |
                 export HOSTNAME=$(cat /proc/sys/kernel/hostname)
                 export HOME=/root
-                echo supdsupd | /usr/bin/supctl --host api.sc-platform.sc-platform.avassa.net do login supd@scalecomputing.com
+                echo "{{ avassa_ct_password }}" | /usr/bin/supctl --host "{{ avassa_ct_api }}" do login "{{ avassa_ct_user }}"
                 /usr/bin/supctl create system sites $HOSTNAME <<EOF
                   name: "$HOSTNAME"
                   descriptive-name: "$HOSTNAME"
-                  type: edge                    
+                  type: edge
                   topology:
                     parent-site: control-tower
                   ingress-allocation-method: dhcp
                   hosts:
-                    - host-id: $(curl https://api.sc-platform.sc-platform.avassa.net/scripts/get-host-id|sh)
+                    - host-id: $(curl "https://{{ avassa_ct_api }}"/scripts/get-host-id|sh)
                 EOF
               - |
                 export HOSTNAME=$(cat /proc/sys/kernel/hostname)
                 export HOME=/root
-                echo supdsupd | /usr/bin/supctl --host api.sc-platform.sc-platform.avassa.net do login supd@scalecomputing.com
+                echo "{{ avassa_ct_password }}" | /usr/bin/supctl --host "{{ avassa_ct_api }}" do login "{{ avassa_ct_user }}"
                 until /usr/bin/supctl show --site "$HOSTNAME" system cluster hosts; do sleep 10; done
-                /usr/bin/supctl do application-deployments popcorn-deployment redeploy
+                /usr/bin/supctl do application-deployments "{{ avassa_ct_deployment }}" redeploy
           meta_data: |
             dsmode: local
             local-hostname: "{{ vmname }}"
 
-    - name: Disk desired configuration for "{{ vmname }}"
-      scale_computing.hypercore.vm_disk:
-        # cluster_instance:
-        #   host: "https://{{inventory_hostname }}"
-        #   username: "{{scale_user}}"
-        #   password: "{{scale_pass}}"
+ #TODO - could register VM with Avassa control tower directly at this stage before even starting VM and remove those steps from cloud-init
+ 
+    - name: Disk desired configuration for "{{ vmname }}"   # seems resizing disk before first boot causes panic on debian11 bulseye unless serial port exists - add SERIAL to tag or description
+      scale_computing.hypercore.vm_disk:  
         vm_name: "{{ vmname }}"
         items:
           - disk_slot: 1
@@ -156,17 +144,15 @@
 
     - name: Vm desired configuration and state for "{{ vmname }}"
       scale_computing.hypercore.vm_params:
-        # cluster_instance:
-        #   host: "https://{{inventory_hostname }}"
-        #   username: "{{scale_user}}"
-        #   password: "{{scale_pass}}"
         vm_name: "{{vmname}}"
-        memory: "{{ '4 GB' | human_to_bytes }}"
-        description:
+        memory: "{{ '8 GB' | human_to_bytes }}"
+        description: debian 11 - user=debian - password=password - avassa EE - SERIAL
         tags:
+          - avassa
           - "{{vmname}}"
           - ansible
           - "{{ site_name }}"
           - ansible_group__"{{vmname}}" # this will create tag used by hypercore inventory plugin when executing towards VM hosts
+          - SERIAL
         vcpu: 4
         power_state: start
