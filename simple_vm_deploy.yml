@@ -2,14 +2,15 @@
 - name: Simple vm deploy #edit vmname variable - use -l filter to specify cluster vs. full inventory
   hosts: edge
   vars:
-    - vmname: ubuntu20-ansiblenav
-#  connection: localhost
+    - vmname: fledge2
+  connection: local
   gather_facts: false
   strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
   environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
     SC_HOST: "https://{{ inventory_hostname }}"
     SC_USERNAME: "{{ scale_user }}"
     SC_PASSWORD: "{{ scale_pass }}"
+    SC_TIMEOUT: 60
     
   tasks:
     - name: Ubuntu20_04 template - Ubuntu 20.04 - import if not present # used to clone and cloud-init target VM
@@ -22,10 +23,12 @@
         http_uri:
           path: 'https://github.com/ddemlow/RestAPIExamples/raw/master/ubuntu20_04-cloud-init'
           file_name: ubuntu20_04-cloud-init.xml
+#      until: ubuntu20_04.msg is search("import complete") #doesnt' check if vm already exists
+      retries: 5
+      delay: 1
       ignore_errors: false  # import errors are not uncommon depdending on network connection to smb / https source
       register: ubuntu20_04
-      tags:    # tags - allow selective task execution with -t at command line
-        - template
+ 
 
     - name: Clone and configure ad hoc "{{ vmname }}"
       scale_computing.hypercore.vm_clone:
@@ -41,18 +44,14 @@
             password: "password"
             chpasswd: { expire: False }
             ssh_pwauth: True
+            ssh_authorized_keys: # Add your ssh public key for publickey authentication
+              - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDihWWhjoPj8KVLtdLDwNJQ71zi9An0iUFjefRWu2Eju ddemlow@scalecomputing.com
+            disable_root: false # allow ssh root login
+            ssh_import_id:  gh:ddemlow
             apt: {sources: {docker.list: {source: 'deb [arch=amd64] https://download.docker.com/linux/ubuntu $RELEASE stable', keyid: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88}}}
-            packages: [qemu-guest-agent, docker-ce, docker-ce-cli, docker-compose, ansible, git, unzip]
-            # snap:
-            #   commands:
-            #     00: snap install semaphore
-            #     01: snap install edgexfoundry
-            #     02: snap install edgex-ui 
-            #     03: snap install edgex-cli
-            #     04: snap install edgex-device-camera
-            #     05: snap install edgex-device-mqtt
-            #     06: snap install edgex-device-rest 
-
+            package_update: true
+            package_upgrade: true
+            packages: [qemu-guest-agent, unzip]
             bootcmd:
               - [ sh, -c, 'sudo echo GRUB_CMDLINE_LINUX="nomodeset" >> /etc/default/grub' ]
               - [ sh, -c, 'sudo echo GRUB_GFXPAYLOAD_LINUX="1024x768" >> /etc/default/grub' ]
@@ -81,7 +80,7 @@
         items:
           - disk_slot: 0
             type: virtio_disk
-            size: "{{ '100 GB' | human_to_bytes }}" # 50GB | human to bytes results in 53.7GB VSD in Hypercore
+            size: "{{ '400 GB' | human_to_bytes }}"  # 50GB | human to bytes results in 53.7GB VSD in Hypercore
         state: present
 
     - name: Vm desired configuration and state for "{{ vmname }}"
