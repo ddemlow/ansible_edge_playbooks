@@ -37,6 +37,13 @@
       register: download
       loop: "{{ image_url }}"
 
+    - name: Delete existing uploading-"{{ image_name }}" virtual disk # recovers from any previous failed upload 
+      scale_computing.hypercore.virtual_disk:
+        name: "uploading-{{ image_name }}"
+        state: absent
+      register: deleted
+      loop: "{{ image_url }}"      
+
     - name: Upload Virtual Disk {{ item | split('/') | last }}" to HyperCore "{{ inventory_hostname }}"
       scale_computing.hypercore.virtual_disk:
         name: "{{ image_name }}"
@@ -159,7 +166,7 @@
     - name: Vm desired configuration and state for "{{ vmname }}"
       scale_computing.hypercore.vm_params:
         vm_name: "{{vmname}}"
-        memory: "{{ '8 GB' | human_to_bytes }}"
+        memory: "{{ '4 GB' | human_to_bytes }}"
         description: debian 11 - user=debian - password=password - avassa EE - SERIAL
         tags:
           - avassa
