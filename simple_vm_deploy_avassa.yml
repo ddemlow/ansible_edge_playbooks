@@ -46,7 +46,13 @@
       loop: "{{ image_url }}" 
       ignore_errors: false
 
-    - name: Create (or update) "{{ image_name }}" template vm 
+
+    - name: Get info about template VM {{ image_name }}
+      scale_computing.hypercore.vm_info:
+        vm_name: "{{ image_name }}"
+      register: vm_info_result
+
+    - name: Create "{{ image_name }}" template vm if it does not already exist 
       scale_computing.hypercore.vm:
         vm_name: "{{ image_name }}"
         description: "{{ image_url[0] }} template "
@@ -62,13 +68,11 @@
         disks:
           - type: ide_cdrom
             disk_slot: 0
-          - type: virtio_disk
-            disk_slot: 1
-            size: "{{ '300 GB' | human_to_bytes }}"
         nics:
           - vlan: 0
             type: virtio
         operating_system:  os_other
+      when:  vm_info_result.records | length == 0   #only create VM if it doesn't already exist - else would delete existing template disk
       register: template
 
     - name: Attach uploaded virtual disk to  "{{ image_name }}" template  # this will attach latest image every time - should there be way to only attach if not exist?
@@ -81,14 +85,14 @@
           disable_snapshotting: false
       register: diskattached
 
-    - name: Disk desired configuration for "{{ vmname }}"   # seems resizing disk before first boot causes panic on debian11 bulseye unless serial port exists - add SERIAL to tag or description
-      scale_computing.hypercore.vm_disk:
-        vm_name: "{{ image_name }}"
-        items:
-          - disk_slot: 1
-            type: virtio_disk
-            size: "{{ '300 GB' | human_to_bytes }}" # 50GB | human to bytes results in 53.7GB VSD in Hypercore
-        state: present
+    # - name: Disk desired configuration for "{{ image_name }}"   # seems resizing disk before first boot causes panic on debian11 bulseye unless serial port exists - add SERIAL to tag or description
+    #   scale_computing.hypercore.vm_disk:
+    #     vm_name: "{{ image_name }}"
+    #     items:
+    #       - disk_slot: 1
+    #         type: virtio_disk
+    #         size: "{{ '300 GB' | human_to_bytes }}" # 50GB | human to bytes results in 53.7GB VSD in Hypercore
+    #     state: present
 
     - name: Set attached vsd device as bootable
       scale_computing.hypercore.vm_boot_devices:
@@ -101,7 +105,7 @@
 
 # template complete! 
 
-    - name: Clone and configure vm "{{ vmname }}" # will only clone if "{{ vmname }}" does not already exist
+    - name: Clone and configure vm "{{ vmname }}" from template "{{ image_name }}" # will only clone if "{{ vmname }}" does not already exist
       scale_computing.hypercore.vm_clone:
         vm_name: "{{ vmname }}"
         source_vm_name: "{{ image_name }}"
