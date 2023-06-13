@@ -3,7 +3,7 @@
   hosts: all 
   vars:  
     vmname: "{{ site_name }}-avassa" # generally would use site_name pattern from inventory for fleet deployment
-    template_name: debian11
+#    template_name: debian11 # not used - currently image base name is used for template name 
     image_url: 
       - "https://cloud.debian.org/images/cloud/bullseye/latest/debian-11-generic-amd64.qcow2"
     image_path: "/Users/davedemlow/tmp/" #~/tmp/" #path to download file
@@ -53,6 +53,7 @@
       loop: "{{ image_url }}" 
       ignore_errors: false
 
+  #TODO - could use a handler to force update virtual disk attached to template only if there is a new download or upload?
 
     - name: Get info about template VM {{ image_name }}
       scale_computing.hypercore.vm_info:
