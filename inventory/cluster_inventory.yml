@@ -7,7 +7,7 @@ all:
             szt15b:
               hosts:
                 "szt15b-01.lab.local": 
-                   hypercore_desired_version: 9.2.16.211405
+                   hypercore_desired_version: 9.2.19.211859
                 "ic01d-01.lab.local":
         region1:  #production site clusters in region 1 - indy region 
           children:
@@ -19,27 +19,13 @@ all:
             franchise: #franchise owned stores managed as a service
               hosts:
                 "vfz31a-01.lab.local": #store F1
+                  hypercore_desired_version: 9.2.19.211859
                 "veb120a-01.lab.local": #store F2
-                  hypercore_desired_version: 9.2.16.211405
-              vars:
-                hypercore_desired_version: 9.2.16.211405
+                  hypercore_desired_version: 9.2.19.211859
         region2: #production site clusters in region 2 - westfield region
           hosts:
             "192.168.1.240.nip.io":  #store101
-            "192.168.1.246.nip.io":  #store102
-            "192.168.1.245.nip.io":  #store103
+            "192.168.1.246.nip.io":  #store10
             "192.168.1.242.nip.io":  #store104
-        region4: #production site clusters in region 4 - sfo region
-          hosts:
-            "10.4.127.163": #single node virtual
-                site_name: tempsns # can also add node vaiables under host_vars folder
-            "10.4.57.136": #9.1.9 sns virtual
-                site_name: tempsns2
-            "wf10a-01.lab.local":
-        region5:
-          hosts:
-            127.0.0.1:
-              scale_user: xlab
-              scale_pass: xlab2022
 
 

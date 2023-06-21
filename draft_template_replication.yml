@@ -1,0 +1,62 @@
+- name: playbook to distribute a template VM to all connected remote replication clusters
+  hosts: all 
+  connection: ansible.builtin.local
+  gather_facts: False
+  #strategy: host_pinned #free  #allows each cluster to start next task before all clusters have finished current task
+  environment:
+    SC_HOST: "https://{{inventory_hostname}}"
+    SC_USERNAME: "{{scale_user}}"
+    SC_PASSWORD: "{{scale_pass}}"
+  vars: 
+    template_name: "centos_vm"   
+  
+  tasks:
+  - name: get remote replication target sites
+    scale_computing.hypercore.remote_cluster_info:
+    register: remote_clusters
+  
+  - name: display count of replication targets 
+    ansible.builtin.debug:
+      msg: "Template {{ template_name }} will be replicated to {{ remote_clusters.records | count }} remote cluster(s)"
+
+  - name: clone template for each destination cluster
+    scale_computing.hypercore.vm_clone:
+      vm_name: "{{ template_name }}-{{ item.name }}"
+      source_vm_name: "{{ template_name }}"
+      tags:
+        - template_replica
+    register: output 
+    loop: "{{ remote_clusters.records }}"     
+
+  - name: Replicate template
+    scale_computing.hypercore.vm_replication:
+      vm_name: "{{ template_name }}-{{ item.name }}"
+      remote_cluster: "{{ item.name }}"
+      state: enabled
+    loop: "{{ remote_clusters.records }}"
+        
+#TODO - currently no api / module exists to set up remote connections between clusters. support could automate some using SC via RS
+#TODO - research ways to check replication status both from source side 
+
+  - name: get replication status # no obvious replication complete status here
+    scale_computing.hypercore.vm_replication_info:
+      vm_name: "{{ template_name }}-{{ item.name }}"
+    register: template_status
+    loop: "{{ remote_clusters.records }}"
+
+  - name: get snapshot info # no obvious replication complete status here
+    scale_computing.hypercore.vm_snapshot_info:
+     vm_name: "{{ template_name }}-{{ item.name }}" 
+     label: "Replication Setup"
+    register: snapshot_status
+    loop: "{{ remote_clusters.records }}"
+
+# native rest api VirDomainReplication has a couple fields with promise 
+    # "progress": {
+    #   "valid": 1,
+    # web UI does show at least timestamp last replicated snapshot on target - unsure if that is in api
+
+# TODO - approaches to iterate across remote sites to clone completed replica (at least would fail until replication setup complete)
+# TODO - cleanup options to delete clones from source 
+# TODO - template update workflow
+
