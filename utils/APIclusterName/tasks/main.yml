@@ -1,5 +1,6 @@
 ---
-# tasks file for ClusterName 
+# tasks file for ClusterName - old, written before module existed, uses native REST client 
+# this is no longer used - hypercore_config role is used - and uses native scale_computing.hypercore.cluster_name module
   - name: Get hypercore ClusterName object using REST api # single uuid record.host 
     scale_computing.hypercore.api:
       action: get

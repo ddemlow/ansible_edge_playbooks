@@ -16,6 +16,7 @@
       - adfs-sso
     unimportant_vms: # list of unimportant VM's to stop 
       - junk
+      - badVM
     
   tasks:
     - name: Stop unimportant_vms defined in cluster_inventory

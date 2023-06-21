@@ -13,4 +13,5 @@
   roles:
     - check-ide # check for vms with ide disks
     - vm_cleanup # cleans up list of formerly used VMs
+    - iso_cleanup #removes isos defined in role
     - hypercore_version # checks and corrects hypercore version vs. desired

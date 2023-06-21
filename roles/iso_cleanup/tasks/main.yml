@@ -6,3 +6,4 @@
       state: absent
     loop:
       - scale-guest-tools-3.0.iso
+      

@@ -55,20 +55,7 @@
             in available_updates {{ available_updates.records | map(attribute='uuid') | list }}
         when: not hypercore_desired_version in (available_updates.records | map(attribute='uuid') | list)
 
-
-  # - name: Report if out of version compliance (skipped if compliant - host execution will end)
-  #   ansible.builtin.debug: 
-  #     msg: update required on  {{inventory_hostname}} {{cluster_info.record[0].clusterName }} is {{cluster_info.record[0].icosVersion | trim }} while desired version is {{hypercore_desired_version}} 
-  #   when: ( cluster_info.record[0].icosVersion  | trim ) != hypercore_desired_version
-  #   ignore_errors: yes
-  #   tags:
-  #     - checkversion
-
-  # - name: Check version compliance - end host execution if compliant - else continue checking
-  #   ansible.builtin.meta: end_host
-  #   when: ( cluster_info.record[0].icosVersion  | trim ) == hypercore_desired_version
-
-  - name: apply desired version to cluster or SNS  #will submit update request and continue without monitoring
+  - name: apply desired version to cluster or SNS                     #will submit update request and continue without monitoring
     scale_computing.hypercore.version_update:
       icos_version: "{{ hypercore_desired_version }}"
     register: update_desired

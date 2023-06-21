@@ -1,0 +1,103 @@
+- name: test DR needed functionality
+  hosts: edge # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
+  connection: ansible.builtin.local
+  gather_facts: false
+  strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
+  environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user }}"
+    SC_PASSWORD: "{{ scale_pass }}"
+
+  tasks:
+  - name: list replication target VMs
+    scale_computing.hypercore.vm_info:
+    register: vm_info
+
+  - name: show vm vm_info  #currently doesnt' provide way to distinguish replication targets - see https://github.com/ScaleComputing/HyperCoreAnsibleCollection/issues/162
+    debug:
+      var: vm_info
+
+# replicationUUIDs': [], 'sourceVirDomainUUID':
+
+  #TODO / FUTURE - check if VM's are still running on source cluster, check replication status 
+  # workflow to "move" to target - shutdown VM on source - wait for shutdown snapshot to complete replication - then clone to bring online on DR target
+
+  # - name: get virdomain info 
+  #   scale_computing.hypercore.api:
+  #     action: get
+  #     cluster_instance:
+  #       host: "https://{{ inventory_hostname }}"
+  #       username: "{{scale_user}}"
+  #       password: "{{scale_pass}}"
+  #     endpoint: /rest/v1/VirDomain
+  #   register:  vm_info_api 
+
+
+
+
+  - name: show vm vm_info with item.replication_source_vm_uuid 
+    debug:
+      msg: VM {{item.vm_name}} is replicated from UUID  {{ item.replication_source_vm_uuid }}
+    when: item.replication_source_vm_uuid | length > 0
+    loop: '{{ vm_info.records }}'
+
+#TODO - output count of replicated vms 
+
+  # - name: clone normal vm  preserve mac 
+  #   scale_computing.hypercore.vm_clone:
+  #     source_vm_name: "milestone-2"
+  #     preserve_mac_address: true 
+  #     vm_name: "milestone-2-DR"
+  #     tags:
+  #       - DRtest 
+
+  #    power_state: started  #not supported param durring clone
+
+  - name: clone all replicated vms and preserve mac - set DRtest tag
+    scale_computing.hypercore.vm_clone:
+      source_vm_name: "{{item.vm_name}}"
+      preserve_mac_address: true 
+      vm_name: "{{item.vm_name}}-DR"
+      tags:
+        - DRtest 
+    when: item.replication_source_vm_uuid | length > 0  #test for replication target - TODO add check for # of snapshots? - may need anoter loop
+    loop: '{{ vm_info.records }}'
+
+  #I can't set power_state:
+  # will fail if dr target snapshots not complete (sow replicating in UI) 
+
+  #TODO - need to build a list to clone from - dr_clone - use to check snapshots and power on 
+
+  #TODO - could offer alternative for DRTEST - different suffix - possible network vlan change
+  # - name: clone replicated VMs and power on #once we get to a list of replication targets to clone and start, or vm_info property to test - this part is pretty easy 
+  #   scale_computing.hypercore.vm_clone:
+  #     vm_name: "{{ item.vm_name }}"-DR  #add DR suffix
+  #     source_vm_name: "{{ item.vm_name }}"
+  #     power_state: start #can I start here?  no
+  #   when: replication_target is true
+  #   loop: "{{ dr_clone.records }}"
+  #   register: dr_clone_results      
+
+
+
+
+
+#    when: item.uuid | trim == hypercore_desired_version
+
+#   # - name: Get uuid ansible user if exist
+  #   ansible.builtin.set_fact:
+  #     ansible_user_uuid: "{{ item.uuid }}" # will be not defined if ansible user doesn't exist
+  #   when: item.username == "ansible"
+  #   loop: '{{ hcuser.record | from_yaml_all | list }}'
+
+  # - name: Create ansible user with admin role # will be skipped if user already exists
+  #   scale_computing.hypercore.api:
+  #     action: post
+  #     endpoint: /rest/v1/User
+  #     data:
+  #       username: "ansible"
+  #       password: "ansible"
+  #       fullName: "Account for running Ansible playbooks with admin role"
+  #       roleUUIDs: ["{{ admin_role_uuid }}"]
+  #   when: ansible_user_uuid is not defined
+
