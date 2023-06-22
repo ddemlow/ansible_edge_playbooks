@@ -7,8 +7,12 @@
     SC_HOST: "https://{{inventory_hostname}}"
     SC_USERNAME: "{{scale_user}}"
     SC_PASSWORD: "{{scale_pass}}"
+    SC_TIMEOUT: 2000000
   vars: 
-    template_name: "centos_vm"   
+    template_name: 
+    - "centos_vm"
+    - "win10IoT-uefi-cloudbase"
+    - "ubuntu20_04"   
   
   tasks:
   - name: get remote replication target sites
@@ -21,35 +25,43 @@
 
   - name: clone template for each destination cluster
     scale_computing.hypercore.vm_clone:
-      vm_name: "{{ template_name }}-{{ item.name }}"
-      source_vm_name: "{{ template_name }}"
+      vm_name: "{{ item[0] }}-{{ item[1].name }}"
+      source_vm_name: "{{ item[0] }}"
       tags:
         - template_replica
     register: output 
-    loop: "{{ remote_clusters.records }}"     
+    with_nested:
+    - "{{ template_name }}"  #becomes item[0]
+    - "{{ remote_clusters.records }}"     
 
   - name: Replicate template
     scale_computing.hypercore.vm_replication:
-      vm_name: "{{ template_name }}-{{ item.name }}"
-      remote_cluster: "{{ item.name }}"
+      vm_name: "{{ item[0] }}-{{ item[1].name }}"
+      remote_cluster: "{{ item[1].name }}"
       state: enabled
-    loop: "{{ remote_clusters.records }}"
-        
+    with_nested:
+    - "{{ template_name }}"
+    - "{{ remote_clusters.records }}"     
+
 #TODO - currently no api / module exists to set up remote connections between clusters. support could automate some using SC via RS
 #TODO - research ways to check replication status both from source side 
 
   - name: get replication status # no obvious replication complete status here
     scale_computing.hypercore.vm_replication_info:
-      vm_name: "{{ template_name }}-{{ item.name }}"
+      vm_name: "{{ item[0] }}-{{ item[1].name }}"
     register: template_status
-    loop: "{{ remote_clusters.records }}"
+    with_nested:
+    - "{{ template_name }}"
+    - "{{ remote_clusters.records }}"     
 
   - name: get snapshot info # no obvious replication complete status here
     scale_computing.hypercore.vm_snapshot_info:
-     vm_name: "{{ template_name }}-{{ item.name }}" 
+     vm_name: "{{ item[0] }}-{{ item[1].name }}" 
      label: "Replication Setup"
     register: snapshot_status
-    loop: "{{ remote_clusters.records }}"
+    with_nested:
+    - "{{ template_name }}"
+    - "{{ remote_clusters.records }}"     
 
 # native rest api VirDomainReplication has a couple fields with promise 
     # "progress": {
