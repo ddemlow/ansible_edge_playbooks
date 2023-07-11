@@ -1,0 +1,20 @@
+- name: playbook to count vm snapshots on hypercore clusters
+  hosts: all 
+  connection: ansible.builtin.local
+  gather_facts: False
+  #strategy: host_pinned #free  #allows each cluster to start next task before all clusters have finished current task
+  environment:
+    SC_HOST: "https://{{inventory_hostname}}"
+    SC_USERNAME: "{{scale_user}}"
+    SC_PASSWORD: "{{scale_pass}}"
+#    SC_TIMEOUT: 2000
+  
+  tasks:
+
+  - name: List all VM snapshots on HyperCore API
+    scale_computing.hypercore.vm_snapshot_info:
+    register: vm_snapshot
+
+  - name: Output snapshot count
+    ansible.builtin.debug:
+      msg: cluster has {{ vm_snapshot.records | length }} snapshots
