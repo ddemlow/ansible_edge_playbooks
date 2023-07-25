@@ -1,3 +1,4 @@
 hc_alt_host: "szt15b-02.lab.local"
 site_name: staging2
 hypercore_cluster_name: "staging-lab-dd"
+SC_AUTH_METHOD: oidc

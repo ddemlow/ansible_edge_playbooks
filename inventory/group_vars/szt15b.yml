@@ -1,5 +1,0 @@
-#attempt to use group to handle cluster of related hypercore nodes
-hc_alt_host: "szt15b-02.lab.local"
-site_name: staging2
-pos_address:  10.6.42.22
-hypercore_cluster_name: "szt15b-lab-dd"

@@ -1,0 +1,5 @@
+hc_alt_host: "vlb04a-01.lab.local"
+pos_address:  10.6.42.21
+site_name: store2
+hypercore_desired_version: 9.2.19.211859
+hypercore_cluster_name: "vlb04a-lab-dd"

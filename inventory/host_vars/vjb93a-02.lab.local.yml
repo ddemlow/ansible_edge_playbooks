@@ -1,0 +1,5 @@
+hc_alt_host: "vjb93a-01.lab.local"
+pos_address:  10.6.42.21
+site_name: store5
+hypercore_desired_version: 9.2.19.211859
+hypercore_cluster_name: "vjb93a-lab-dd"

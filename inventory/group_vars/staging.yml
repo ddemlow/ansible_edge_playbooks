@@ -1,4 +1,4 @@
-            hypercore_desired_version: 9.2.14.211224
+            hypercore_desired_version: 9.2.19.211859
             hypercore_role: staging
             smbserver: 10.6.42.2
             smbpath: /azure-sync/ubuntu20_04-cloud-init

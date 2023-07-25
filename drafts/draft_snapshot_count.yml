@@ -17,4 +17,4 @@
 
   - name: Output snapshot count
     ansible.builtin.debug:
-      msg: cluster has {{ vm_snapshot.records | length }} snapshots
+      msg: cluster {{ inventory_hostname }} has {{ vm_snapshot.records | length }} snapshots

@@ -1,0 +1,229 @@
+---
+- hosts: all
+  connection: ansible.builtin.local
+  vars:
+    vcenter_hostname: "192.168.1.72"
+    vcenter_username: "root"
+    vcenter_password: "{{ vcenter_password }}"
+    datacenter: "ha-datacenter" 
+    delete_vms: false
+#    folder: "/vm" # this is vcenter folder if applicable
+    vm_name: "windows-bios" # could turn to list and loop 
+    export_path: ~/tmp/  #on executing host
+  environment: 
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user }}"
+    SC_PASSWORD: "{{ scale_pass }}"
+    SC_TIMEOUT: 2000000
+    VMWARE_USER: "{{ vcenter_username }}"
+    VMWARE_VALIDATE_CERTS: no
+    VMWARE_HOST: "{{ vcenter_hostname }}"
+    VMWARE_PASSWORD: "{{ vcenter_password }}"
+  #  SC_AUTH_METHOD: oidc #or local
+# requirements 
+# sudo ansible-galaxy collection install community.vmware
+# pip install -r ~/.ansible/collections/ansible_collections/community/vmware/requirements.txt
+# git+https://github.com/vmware/vsphere-automation-sdk-python.git ; python_version >= '2.7'  # Python 2.6 is not supported
+# pyVmomi>=6.7
+# currently relies on qemu-img installed on local machine for vmdk to vmdk conversion 
+ #pip install --upgrade git+https://github.com/vmware/vsphere-automation-sdk-python.git
+    
+  tasks:
+  - name: List all VMware VMs  #basis for loop migrate or auto vm creation on hypercore 
+    community.vmware.vmware_vm_info:
+      hostname: "{{ vcenter_hostname }}"
+      username: "{{ vcenter_username }}"
+      password: "{{ vcenter_password }}"
+      validate_certs: false
+      show_allocated: true 
+    register: vm_info
+
+  - name: Shutoff "{{ vm_name }}" if on 
+    community.vmware.vmware_guest_powerstate:
+      state: powered-off
+      name: "{{ item.guest_name }}"
+      state_change_timeout: 200
+    loop: "{{ vm_info.virtual_machines }}"
+
+  - name: Export VM to OVF 
+    vmware_export_ovf:
+      hostname: "{{ vcenter_hostname }}"
+      username: "{{ vcenter_username }}"
+      password: "{{ vcenter_password }}"
+      datacenter: "{{ datacenter }}"
+      name: "{{ item.guest_name }}"
+      export_dir: "{{ export_path }}"
+      validate_certs: false
+    loop: "{{vm_info.virtual_machines }}"
+
+
+# qemu-img convert -f vmdk -O qcow2 ubuntu2-1.vmdk ubuntu2-uncomp.qcow2
+# or qemu-img convert -O vmdk ubuntu2-1.vmdk ubuntu2-uncomp.vmdk
+
+  - name: Search for .vmdk.vmdk files to delete
+    ansible.builtin.find:
+      paths: "{{export_path}}" # /{{ vm_name }}" - look for all
+      hidden: false
+      recurse: true
+      file_type: any
+      patterns: 
+        # - '*.qcow2'
+        - '*.vmdk.vmdk'
+        # - '*.vhd'
+        # - '*.img'
+        # - '*.vhdx'
+    register: delete_files
+
+  - name: Delete files with .vmdk.vmdk extension
+    file:
+      state: absent
+      path: "{{ item.path }}" # "{{export_path}}/{{ vm_name }}"
+    loop: "{{ delete_files.files }}"
+# TODO when there are files to delete 
+
+  - name: search for vmdk files to convert in  "{{ export_path }}"
+    ansible.builtin.find:
+      paths: "{{ export_path }}" # /{{ vm_name }}" look for all
+      hidden: false
+      recurse: true
+      file_type: any
+      patterns:
+        # - '*.qcow2'
+        - '*.vmdk'
+        # - '*.vhd'
+        # - '*.img'
+        # - '*.vhdx'
+    register: convert_files
+
+  - name: Convert compressed VMDK files to non-compressed VMDK files 
+    shell: qemu-img convert -f vmdk -O vmdk {{ item.path }} {{ item.path }}.vmdk  # results in .vmdk.vmdk extension
+    loop: "{{ convert_files.files }}" 
+    ignore_errors: true
+
+  - name: search for uploadable virtual disk files
+    ansible.builtin.find:
+      paths: "{{export_path}}" # /{{ vm_name }}" search through all
+      hidden: false
+      recurse: true
+      file_type: any
+      patterns: 
+        # - '*.qcow2'
+        - '*.vmdk.vmdk'  #hack only find converted vm with double vmdk extension
+        # - '*.vhd'
+        # - '*.img'
+        # - '*.vhdx'
+    register: uploadable_files
+
+  - name: Upload local Virtual Disk from path search {{ export_path }}" to HyperCore "{{ inventory_hostname }}"
+    scale_computing.hypercore.virtual_disk:
+      name: "{{ item.path | split('/') | last }}"
+      source: "{{ item.path }}" 
+      state: present
+    register: uploadResult
+    loop: "{{ uploadable_files.files }}" 
+    ignore_errors: true
+
+# TODO - option to cleanup item.path after successful or any upload
+# TODO - could use a handler to force update virtual disk attached to template only if there is a new download or upload?
+
+  - name: Get info about template VM
+    scale_computing.hypercore.vm_info:
+      vm_name: "{{ item.guest_name }}"
+    register: vm_info_result
+    loop: "{{ vm_info.virtual_machines }}"
+
+# TODO - use api or scrape ovf file to match vmware vm configuration 
+
+  - name: Create "{{ vm_name }}" template vm if it does not already exist 
+    scale_computing.hypercore.vm:
+      vm_name: "{{ item.guest_name }}"
+      description: "{{ item.guest_name }} from vmware "
+      machine_type: UEFI
+      state: present
+      tags:
+        - FromVMware
+        - serial
+      memory: "{{ item.allocated.memory }}*1024" # #"{{ '4 GB' | human_to_bytes }}"
+      vcpu:  "{{ item.allocated.cpu }}" #2 # makes template vm unbootable - must change cpu on cloned vm 
+      power_state: stop
+      disks:
+        - type: ide_cdrom
+          disk_slot: 0
+        - type: nvram
+          disk_slot: 0
+      nics:
+        - vlan: 0
+          type: virtio
+      operating_system:  os_windows_server_2012 #os_other
+      attach_guest_tools_iso: false
+    loop: "{{ vm_info.virtual_machines }}"
+#    when:  vm_info_result.records | length == 0   #only create VM if it doesn't already exist - else would delete existing template disk
+    register: template
+    ignore_errors: true
+
+  - name: Attach uploaded virtual disk to  "{{ vm_name }}" template  # this will attach latest image every time - should there be way to only attach if not exist?
+    scale_computing.hypercore.virtual_disk_attach:
+      name: "{{ item.path | split('/') | last }}"
+      vm_name: "{{ item.path | split('/') | last }}"
+      disk:
+        type: ide_disk
+        disk_slot: 1  
+        regenerate_disk_id: false
+    register: diskattached
+    loop: "{{ uploadable_files.files }}" 
+    ignore_errors: true
+
+    # - name: Disk desired configuration for "{{ image_name }}"   # seems resizing disk before first boot causes panic on debian11 bulseye unless serial port exists - add SERIAL to tag or description
+    #   scale_computing.hypercore.vm_disk:
+    #     vm_name: "{{ image_name }}"
+    #     items:
+    #       - disk_slot: 1
+    #         type: virtio_disk
+    #         size: "{{ '300 GB' | human_to_bytes }}" # 50GB | human to bytes results in 53.7GB VSD in Hypercore
+    #     state: present
+
+  - name: Set attached vsd device as bootable
+    scale_computing.hypercore.vm_boot_devices:
+      vm_name: "{{ item.guest_name_name }}"
+      items:
+        - type: ide_disk #for simplification here vs. deciding ide vs. virtio
+          disk_slot: 1
+      state: present
+    loop: "{{ vm_info.vm_info.virtual_machines }}"
+    register: bootable
+
+# template complete!
+
+  - name: Turn on VM
+    scale_computing.hypercore.vm_params:
+      vm_name: "{{ item.guest_name }}"
+      power_state: start
+    loop: "{{ vm_info.vm_info.virtual_machines }}"
+    
+  - name: delete all vmware vms
+    community.vmware.vmware_guest:
+      hostname: "{{ vcenter_hostname }}"
+      username: "{{ vcenter_username }}"
+      password: "{{ password }}"
+      validate_certs: false
+      datacenter: "{{ datacenter }}"
+      folder: "{{ folder }}"
+      name: "{{ item.guest_name }}"
+      state: absent
+    loop: "{{ vm_info.virtual_machines }}"
+    when: delete_vms is true
+
+  - name: get information about vmware host
+    
+
+
+
+
+
+
+
+
+
+
+
+# TODO - use vmware module to shutdown esxi host for final victory lap 
