@@ -13,3 +13,4 @@
             httpserver: 10.100.15.187
             timeSource: 192.168.1.42
             pharm_ram: "{{ '4 GB' | human_to_bytes }}"
+            vcenter_password: "Scale2010!"

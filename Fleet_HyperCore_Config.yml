@@ -4,7 +4,7 @@
   connection: ansible.builtin.local
   gather_facts: false
   ignore_unreachable: false
-  strategy: free #host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
+  strategy: free # host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
   environment:  # if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
     SC_HOST: "https://{{ inventory_hostname }}"
     SC_USERNAME: "{{ scale_user }}"
@@ -17,7 +17,7 @@
     - template
     - schedules
     - pharmacy
-    - pos 
-    - security 
-    - iot #long running window iot deployment and configuration
-    
+    - pos
+    - security
+    - iot # long running window iot deployment and configuration
+  

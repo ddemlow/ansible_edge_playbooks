@@ -1,0 +1,36 @@
+            gateway: 10.0.0.1
+            subnet: 255.255.255.0
+            dns_servers: 8.8.8.8, 10.100.252.2
+            ansible_user: root
+            vm_image_url: 'smb://remotedc;administrator:Scale2010@10.100.15.180/azure-sync/ubuntu18_04-cloud-init'
+            syslog_ip: '10.6.42.4'
+            scale_user: admin 
+            scale_pass: admin
+            hypercore_role: test
+            hypercore_desired_version: 9.3.0.210939
+            # smbserver: 192.168.0.120
+            # smbpath: /data/ubuntu20_04-cloud-init
+            # winsmbpath: /data/win10IoT-uefi-cloudbase 
+            # smbusername: user
+            # smbpassword: Scale2010!
+            # timeZone: US/Pacific
+            # httpserver:  192.168.0.120
+            pharm_ram: "{{ '1 GB' | human_to_bytes }}"
+
+            #            hypercore_desired_version: 9.2.14.211224
+            gateway: 10.0.0.1
+            subnet: 255.255.255.0
+            dns-nameserver: 192.168.1.248
+            ansible_user: root
+            vm_image_url: 'smb://remotedc;administrator:Scale2010@10.100.15.180/azure-sync/ubuntu18_04-cloud-init'
+            syslog_ip: '10.6.42.4'
+            hypercore_role: test
+            smbserver: 10.6.42.2
+            smbpath: /azure-sync/ubuntu20_04-cloud-init
+            winsmbpath: /azure-sync/win10IoT-uefi-cloudbase 
+            smbusername: remotedc;administrator
+            smbpassword: Scale2010
+            timeZone: America/Indiana/Indianapolis
+            httpserver: 10.100.15.187
+            dns_servers: 8.8.8.8
+            timeSource: 10.100.45.29

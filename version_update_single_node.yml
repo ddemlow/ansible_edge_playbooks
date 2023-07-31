@@ -1,15 +1,15 @@
----
+--- # 
 - name: Update a HyperCore single-node system
   hosts: all
   connection: local
   gather_facts: true
-  # Comment out check_mode=true if you really want to start update.
-#  check_mode: true
   environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
     SC_HOST: "https://{{ inventory_hostname }}"
     SC_USERNAME: "{{ scale_user }}"
     SC_PASSWORD: "{{ scale_pass }}"
     SC_TIMEOUT: 600
+  vars: 
+    version_update_single_node_shutdown_wait_time: 300  #workaround for issue https://github.com/ScaleComputing/HyperCoreAnsibleCollection/issues/257
 
   tasks:
     - name: get all available updates 
@@ -19,12 +19,12 @@
     - name: determine next available update  #TODO - these fail if no update available
       ansible.builtin.set_fact:
         next_update: "{{ ( version_update.records | from_yaml | sort(attribute='revision' ) | sort(attribute='minor_version' ) | sort(attribute='major_version' ) | first ).uuid }}" 
-      when: version_update != []
+      when: version_update.records | length > 0
 
     - name: determine newest available update 
       ansible.builtin.set_fact:
         newest_update: "{{ ( version_update.records | from_yaml | sort(attribute='revision' ) | sort(attribute='minor_version' ) | sort(attribute='major_version' ) | last ).uuid }}" 
-      when: version_update != []
+      when: version_update.records | length > 0
 
 #TODO - add way to get latest wihin current or specific major or minor version - try next, last, some flag to ignore different minor version?
         
@@ -47,8 +47,8 @@
       include_role:
         name: scale_computing.hypercore.version_update_single_node
       vars:
-        scale_computing_hypercore_desired_version: "{{ next_update }}" #"{{ hypercore_desired_version }}"
-      when: hour_remote.stdout | int >= 16 or hour_remote.stdout | int <= 5
+        version_update_single_node_desired_version: "{{ hypercore_desired_version }}" #"{{ next_update }}" #
+      when: hour_remote.stdout | int >= 13 or hour_remote.stdout | int <= 10
 
 #      when: ansible_date_time.hour|int >= 17 or  ansible_date_time.hour|int <= 5 #this uses local time fact
 

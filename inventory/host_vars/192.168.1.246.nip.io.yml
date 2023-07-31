@@ -5,4 +5,4 @@ important_vms: |  # list of important vms that should be running (in addition to
 support_tunnel: 3272
 hypercore_cluster_name: "charlotte-3272-dd"
 pharm_ram: "{{ '2 GB' | human_to_bytes }}"
-hypercore_desired_version: 9.2.17.211525
+#hypercore_desired_version: 9.2.17.211525

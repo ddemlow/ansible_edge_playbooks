@@ -7,25 +7,32 @@ all:
             szt15b:
               hosts:
                 "szt15b-01.lab.local": 
-                   hypercore_desired_version: 9.2.19.211859
-                "ic01d-01.lab.local":
+                   hypercore_desired_version: 9.2.19.211859i
+
+#                "ic01d-01.lab.local":
         region1:  #production site clusters in region 1 - indy region 
           children:
             corporate: #corporate owned stores
               hosts:
-                "ozt60b-01.lab.local": #store2
-                "ozt18a-01.lab.local": #store3 
-                "dzt09a-01.lab.local":
+                "vlb04a-01.lab.local": #store2
+                "vjb93a-02.lab.local":
+#                "ozt18a-01.lab.local": #store3 
+#                "dzt09a-01.lab.local":
             franchise: #franchise owned stores managed as a service
               hosts:
                 "vfz31a-01.lab.local": #store F1
-                  hypercore_desired_version: 9.2.19.211859
+                  hypercore_desired_version: 9.2.20.212005
                 "veb120a-01.lab.local": #store F2
-                  hypercore_desired_version: 9.2.19.211859
+                  hypercore_desired_version: 9.2.20.212005
         region2: #production site clusters in region 2 - westfield region
           hosts:
-            "192.168.1.240.nip.io":  #store101
+            "192.168.1.240.nip.io":  #store101i
+              hypercore_desired_version: 9.2.20.212005
             "192.168.1.246.nip.io":  #store10
+              hypercore_desired_version: 9.2.20.212005
             "192.168.1.242.nip.io":  #store104
+              hypercore_desired_version: 9.1.24.211326 #experimental gpu passthrough
 
-
+        gcu: #production site clusters in region 3 - gce
+          hosts:
+            "10.6.43.98":  #gce
