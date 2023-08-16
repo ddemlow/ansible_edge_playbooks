@@ -1,5 +1,5 @@
-- name: test DR needed functionality
-  hosts: edge # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
+- name: Monitor source cluster and IPs and Initiate VM failover (clone/start) if source is completely down 
+  hosts: all # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
   connection: ansible.builtin.local
   gather_facts: false
   strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
@@ -7,97 +7,96 @@
     SC_HOST: "https://{{ inventory_hostname }}"
     SC_USERNAME: "{{ scale_user }}"
     SC_PASSWORD: "{{ scale_pass }}"
-
-  tasks:
-  - name: list replication target VMs
-    scale_computing.hypercore.vm_info:
-    register: vm_info
-
-  - name: show vm vm_info  #currently doesnt' provide way to distinguish replication targets - see https://github.com/ScaleComputing/HyperCoreAnsibleCollection/issues/162
-    debug:
-      var: vm_info
-
-# replicationUUIDs': [], 'sourceVirDomainUUID':
+  vars:
+    primaryip: 192.168.1.246
+    secondaryip: 192.168.1.250
+    http_check: 192.168.1.138 #"{{ primaryip }}"  #todo - make this optional 
+    http_check_port: 30001
+#    source_cluster: "charlotte-3272-dd" #not currently used - could be used to check remote_cluster_info connection_status 
 
   #TODO / FUTURE - check if VM's are still running on source cluster, check replication status 
   # workflow to "move" to target - shutdown VM on source - wait for shutdown snapshot to complete replication - then clone to bring online on DR target
+  # workflow to move -DR VMs back 
+  # question - if multiple remote clusters - is there a way to tell which vms came from specific cluster via ansible? does not appear so in target api - could maybe set tags on source VMs
 
-  # - name: get virdomain info 
-  #   scale_computing.hypercore.api:
-  #     action: get
-  #     cluster_instance:
-  #       host: "https://{{ inventory_hostname }}"
-  #       username: "{{scale_user}}"
-  #       password: "{{scale_pass}}"
-  #     endpoint: /rest/v1/VirDomain
-  #   register:  vm_info_api 
+  tasks:
+  - name: get remote cluster info
+    scale_computing.hypercore.remote_cluster_info:
+    register: remote_cluster 
 
-
-
-
-  - name: show vm vm_info with item.replication_source_vm_uuid 
+  - name: Check and fail if source cluster is not "DISCONNECTED"
     debug:
-      msg: VM {{item.vm_name}} is replicated from UUID  {{ item.replication_source_vm_uuid }}
-    when: item.replication_source_vm_uuid | length > 0
-    loop: '{{ vm_info.records }}'
+      msg: source cluster connection state {{ remote_cluster.records[0].connection_status }}
+    failed_when: remote_cluster.records[0].connection_status != "DISCONNECTED" #just a hack - assuming first - need to lookup name
+#    ignore_errors: true  # could set this to false and any failure would stop playbook execution ... normal use would stop here if source cluster is connected
+    register: remote_cluster_connected
 
-#TODO - output count of replicated vms 
+  - name: Check and fail if primary "{{ primaryip }}" is online
+    local_action: command ping -c 1 {{ primaryip }}
+    register: ping_result_primary
+    ignore_errors: true 
+    changed_when: false
+    failed_when: ping_result_primary is not failed 
+    retries: 2
+    delay: 5
+    until: ping_result_primary.rc ==0
 
-  # - name: clone normal vm  preserve mac 
-  #   scale_computing.hypercore.vm_clone:
-  #     source_vm_name: "milestone-2"
-  #     preserve_mac_address: true 
-  #     vm_name: "milestone-2-DR"
-  #     tags:
-  #       - DRtest 
+  - name: check and fail if secondary "{{ secondaryip }}" is online
+    local_action: command ping -c 1 {{ secondaryip }}
+    retries: 2
+    delay: 5
+    register: ping_result_secondary
+    until: ping_result_secondary.rc ==0   #any successful ping will stop retries 
+    ignore_errors: true
+    changed_when: false
+    failed_when: ping_result_secondary is not failed 
 
-  #    power_state: started  #not supported param durring clone
+  - name: check and fail if "{{ http_check }}" status port "{{ http_check_port }}" is online # intendend to check nodes at primary site 
+    wait_for:
+      host: "{{ http_check }}"
+      port: "{{ http_check_port }}"
+      timeout: 10
+    ignore_errors: true 
+    register: http_alive
+    failed_when: http_alive is not failed
 
-  - name: clone all replicated vms and preserve mac - set DRtest tag
+  - name: set failover false by default
+    ansible.builtin.set_fact:
+      initiate_failover: false
+
+  - name: evaluate initiate_failover
+    ansible.builtin.set_fact:
+      initiate_failover: true
+    when: ping_result_primary.rc !=0 and ping_result_secondary.rc != 0 and http_alive.failed_when_result is false and remote_cluster_connected.failed_when_result is false # and remote_cluster.record[0].connection_status = "DISCONNECTED"
+
+  - name: output initiate_failover
+    debug:
+      var: initiate_failover
+
+  - name: end playbook if failover not needed 
+    ansible.builtin.meta: end_play
+    when:  initiate_failover is false
+
+  - name: get all vms to identify replication target VMs # Modules vm, vm_info will return this as replication_source_vm_uuid, it will be UUID or empty string.
+    scale_computing.hypercore.vm_info:
+    register: vm_info
+
+  - name: clone all replicated vms and preserve mac - set DRtest tag #note - will skip if VM name already exists - added date + minute to name 
     scale_computing.hypercore.vm_clone:
       source_vm_name: "{{item.vm_name}}"
-      preserve_mac_address: true 
-      vm_name: "{{item.vm_name}}-DR"
+      preserve_mac_address: true
+      vm_name: "{{item.vm_name}}-{{ '%Y-%m-%d_%M' | strftime }}-DR"
       tags:
-        - DRtest 
-    when: item.replication_source_vm_uuid | length > 0  #test for replication target - TODO add check for # of snapshots? - may need anoter loop
-    loop: '{{ vm_info.records }}'
+        - DRtest
+    when: initiate_failover is true and ( item.replication_source_vm_uuid | length > 0) 
+    loop: "{{ vm_info.records }}" # should build sub-list of replication targets
+    register: cloned_vms
 
-  #I can't set power_state:
-  # will fail if dr target snapshots not complete (sow replicating in UI) 
+  - name: power on cloned vms
+    scale_computing.hypercore.vm_params:
+      power_state: start
+      vm_name: "{{item.invocation.module_args.vm_name}}"
+    when: item.changed is true
+    loop: "{{ cloned_vms.results }}" 
 
-  #TODO - need to build a list to clone from - dr_clone - use to check snapshots and power on 
-
-  #TODO - could offer alternative for DRTEST - different suffix - possible network vlan change
-  # - name: clone replicated VMs and power on #once we get to a list of replication targets to clone and start, or vm_info property to test - this part is pretty easy 
-  #   scale_computing.hypercore.vm_clone:
-  #     vm_name: "{{ item.vm_name }}"-DR  #add DR suffix
-  #     source_vm_name: "{{ item.vm_name }}"
-  #     power_state: start #can I start here?  no
-  #   when: replication_target is true
-  #   loop: "{{ dr_clone.records }}"
-  #   register: dr_clone_results      
-
-
-
-
-
-#    when: item.uuid | trim == hypercore_desired_version
-
-#   # - name: Get uuid ansible user if exist
-  #   ansible.builtin.set_fact:
-  #     ansible_user_uuid: "{{ item.uuid }}" # will be not defined if ansible user doesn't exist
-  #   when: item.username == "ansible"
-  #   loop: '{{ hcuser.record | from_yaml_all | list }}'
-
-  # - name: Create ansible user with admin role # will be skipped if user already exists
-  #   scale_computing.hypercore.api:
-  #     action: post
-  #     endpoint: /rest/v1/User
-  #     data:
-  #       username: "ansible"
-  #       password: "ansible"
-  #       fullName: "Account for running Ansible playbooks with admin role"
-  #       roleUUIDs: ["{{ admin_role_uuid }}"]
-  #   when: ansible_user_uuid is not defined
-
+#TODO - could add tests to determine VM and / or application is up and running / ready - check web port, etc.  could also put additional failover steps here like DNS update if needed
