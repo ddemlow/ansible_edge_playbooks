@@ -1,5 +1,5 @@
 #hypercore cluster settings fleet defaults
-    hypercore_desired_version: 9.1.24.211326 #view as desired minimum version for fleet
+    hypercore_desired_version: 9.2.22.212325 #view as desired minimum version for fleet
     scale_user: ansible
     scale_pass: ComplexPassword1234ans #be default ansible masks out what it think is passwords - so using simple password can conflict with VM names - etc. 
     scale_admin_user: admin

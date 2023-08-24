@@ -22,7 +22,7 @@
   scale_computing.hypercore.cluster_name:
     name_new: "{{ hypercore_cluster_name }}"
   ignore_errors: true
-  when: hypercore_cluster_name is true
+#  when: hypercore_cluster_name is true  # not sure how blank / undefined cluster name is handled with this commented out
 
 - name: set DNS configuration on "{{ hypercore_cluster_name }}" 
   scale_computing.hypercore.dns_config:
@@ -83,9 +83,15 @@
     state: present
   ignore_errors: true
 
-- name: Open support tunnel "{{ support_tunnel}}" on "{{ hypercore_cluster_name }}"
+- name: Open support tunnel "{{ support_tunnel}}" on "{{ hypercore_cluster_name }}"  #TODO - do I need to close if false?
   scale_computing.hypercore.support_tunnel:
     state: present
     code: "{{ support_tunnel }}"
-  when: support_tunnel is true
+  when: support_tunnel is not false
 
+- name: Close support tunnel "{{ support_tunnel}}" on "{{ hypercore_cluster_name }}"  #TODO - do I need to close if false?
+  scale_computing.hypercore.support_tunnel:
+    state: absent
+    code: "{{ support_tunnel }}"
+  when: support_tunnel is false
+  

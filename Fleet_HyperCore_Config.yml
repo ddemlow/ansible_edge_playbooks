@@ -1,6 +1,6 @@
 ---
 - name: Retail-edge VM workload deployment playbook - create and update HyperCore VMs
-  hosts: edge # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
+  hosts: all # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
   connection: ansible.builtin.local
   gather_facts: false
   ignore_unreachable: false

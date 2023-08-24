@@ -10,16 +10,18 @@
     SC_USERNAME: "{{ scale_user }}"
     SC_PASSWORD: "{{ scale_pass }}"
     SC_TIMEOUT: 2000000
+    SC_AUTH_METHOD: oidc #or local
+    
   vars:
     image_url: 
       - "https://github.com/ddemlow/RestAPIExamples/raw/master/ubuntu20_04-cloud-init/ubuntu20cloudimage.qcow2"
-#      - "https://github.lab.local/ddemlow/k8sdeploy/raw/master/ubuntu18_04-cloud-init/ubuntu18cloudimage.qcow2"
-#      - "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.vmdk"
-#      - "https://github.com/ddemlow/RestAPIExamples/raw/master/RHEL9/RHEL9-disk.qcow2"
-#      -  "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64-disk-kvm.img"
+      - "https://github.lab.local/ddemlow/k8sdeploy/raw/master/ubuntu18_04-cloud-init/ubuntu18cloudimage.qcow2"
+      - "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.vmdk"
+      - "https://github.com/ddemlow/RestAPIExamples/raw/master/RHEL9/RHEL9-disk.qcow2"
+      - "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64-disk-kvm.img"
     image_filename: "{{ image_url[0] | split('/') | last }}"  #only works for first in list
-    image_path: "/home/ubuntu/"
-    image_remove_old: false
+    image_path: "/Users/davedemlow/Downloads/"
+    image_remove_old: true
     template_remove_old: false
 
   tasks:
@@ -33,7 +35,7 @@
         dest: "{{image_path}}{{ item | split('/') | last }}"
         timeout: 10000
         validate_certs: false
-      when: not "{{image_path}}{{ item | split('/') | last }}"
+ #     when: not "{{image_path}}{{ item | split('/') | last }}"
       register: download
       loop: "{{ image_url }}"
 
@@ -117,6 +119,50 @@
       register: uploadResult
       loop: "{{ uploadable_files.files }}" 
       ignore_errors: true
+
+    - name: search for uploadable virtual disk files in  "/Volumes/Samsung USB"
+      ansible.builtin.find:
+        paths: "/Volumes/Samsung USB"
+        hidden: false
+        recurse: false
+        file_type: any
+        patterns: 
+         - '*.qcow2'
+         - '*.vmdk'
+         - '*.vhd'
+         - '*.img'
+         - '*.vhdx'
+      register: uploadable_files
+
+    - name: delete uploading- from  "/Volumes/Samsung USB" search for HyperCore "{{ inventory_hostname }}" #
+      scale_computing.hypercore.virtual_disk:
+        name: "uploading-{{ item.path | split('/') | last }}"
+        source: "{{ item.path }}" 
+        state: absent
+      register: uploadResult
+      loop: "{{ uploadable_files.files }}"
+      ignore_errors: true
+
+    - name: delete existing virtual disks - from  "/Volumes/Samsung USB" forHyperCore "{{ inventory_hostname }}" #500 error if previous upload still converting 
+      scale_computing.hypercore.virtual_disk:
+        name: "{{ item.path | split('/') | last }}"
+        source: "{{ item.path }}" 
+        state: absent
+      register: uploadResult
+      loop: "{{ uploadable_files.files }}"               
+      when: image_remove_old
+      ignore_errors: true
+
+
+    - name: Upload local Virtual Disk from path search "/Volumes/Samsung USB" to HyperCore "{{ inventory_hostname }}"
+      scale_computing.hypercore.virtual_disk:
+        name: "{{ item.path | split('/') | last }}"
+        source: "{{ item.path }}" 
+        state: present
+      register: uploadResult
+      loop: "{{ uploadable_files.files }}" 
+      ignore_errors: true      
+
 
 
     # - name: Set diskmedia_uuid to uploaded UUID

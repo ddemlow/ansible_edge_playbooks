@@ -18,6 +18,7 @@
   # workflow to "move" to target - shutdown VM on source - wait for shutdown snapshot to complete replication - then clone to bring online on DR target
   # workflow to move -DR VMs back 
   # question - if multiple remote clusters - is there a way to tell which vms came from specific cluster via ansible? does not appear so in target api - could maybe set tags on source VMs
+  # TODO - need way to detect if failover has already happened
 
   tasks:
   - name: get remote cluster info

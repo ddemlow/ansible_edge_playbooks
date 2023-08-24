@@ -3,7 +3,7 @@
   hosts: all
   connection: local
   gather_facts: true
-  environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+  environment:  # if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
     SC_HOST: "https://{{ inventory_hostname }}"
     SC_USERNAME: "{{ scale_user }}"
     SC_PASSWORD: "{{ scale_pass }}"
@@ -49,6 +49,15 @@
       vars:
         version_update_single_node_desired_version: "{{ hypercore_desired_version }}" #"{{ next_update }}" #
       when: hour_remote.stdout | int >= 13 or hour_remote.stdout | int <= 10
+
+    - name: Get version update status
+      scale_computing.hypercore.version_update_status_info:
+      register: version_update_status
+
+    - name: Report failed when update status is TERMINATING (vs. COMPLETED) 
+      ansible.builtin.debug:
+        var: version_update_status
+      failed_when: version_update_status.record.update_status == "TERMINATING"
 
 #      when: ansible_date_time.hour|int >= 17 or  ansible_date_time.hour|int <= 5 #this uses local time fact
 
