@@ -1,0 +1,123 @@
+- name: Repatriate workload from Google Cloud Unity via replication / VM failover (clone/start)
+  hosts: vfz31a-01.lab.local #all # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
+  connection: ansible.builtin.local
+  gather_facts: false
+  strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
+  environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user }}"
+    SC_PASSWORD: "{{ scale_pass }}"
+  vars:
+    primaryip: 10.6.42.238
+    # secondaryip: 192.168.1.250
+    # http_check: 192.168.1.138 #"{{ primaryip }}"  #todo - make this optional 
+    # http_check_port: 30001
+    gcu_cluster: 10.6.43.98 
+    workload: "storef1-avassa-clone"
+
+  #TODO / FUTURE - check if VM's are still running on source cluster, check replication status 
+  # workflow to move -DR VMs back 
+  # question - if multiple remote clusters - is there a way to tell which vms came from specific cluster via ansible? does not appear so in target api - could maybe set tags on source VMs
+
+  tasks:
+  - name: Get edge cluster info
+    scale_computing.hypercore.remote_cluster_info:
+    register: remote_cluster
+
+  - name: Check and fail if edge cluster is "DISCONNECTED"
+    debug:
+      msg: source cluster connection state {{ remote_cluster.records[0].connection_status }}
+    failed_when: remote_cluster.records[0].connection_status == "DISCONNECTED" #just a hack - assuming first - need to lookup name
+#    ignore_errors: true  # could set this to false and any failure would stop playbook execution ... normal use would stop here if source cluster is connected
+    register: remote_cluster_connected
+
+  - name: Get cloud cluster info
+    scale_computing.hypercore.remote_cluster_info:
+      cluster_instance:
+        host: "https://{{ gcu_cluster }}"
+    register: remote_cluster
+
+  - name: shutdown cloud workload
+    scale_computing.hypercore.vm_params:    
+      cluster_instance:
+        host: "https://{{ gcu_cluster }}"
+      vm_name: "{{ workload }}"
+      power_state: shutdown
+      shutdown_timeout: 600
+    register: cloud_vm   
+
+  - name: Check and fail if primary "{{ primaryip }}" is online (wait for shutdown)
+    local_action: command ping -c 1 {{ primaryip }}
+    register: ping_result_primary
+    ignore_errors: true 
+    changed_when: false
+    failed_when: ping_result_primary is failed 
+    retries: 10
+    delay: 10
+    until: ping_result_primary.rc !=0
+
+  # - name: check and fail if secondary "{{ secondaryip }}" is online
+  #   local_action: command ping -c 1 {{ secondaryip }}
+  #   retries: 2
+  #   delay: 5
+  #   register: ping_result_secondary
+  #   until: ping_result_secondary.rc ==0   #any successful ping will stop retries 
+  #   ignore_errors: true
+  #   changed_when: false
+  #   failed_when: ping_result_secondary is not failed 
+
+  # - name: check and fail if "{{ http_check }}" status port "{{ http_check_port }}" is online # intendend to check nodes at primary site 
+  #   wait_for:
+  #     host: "{{ http_check }}"
+  #     port: "{{ http_check_port }}"
+  #     timeout: 10
+  #   ignore_errors: true 
+  #   register: http_alive
+  #   failed_when: http_alive is not failed
+
+  - name: set failover false by default
+    ansible.builtin.set_fact:
+      initiate_failover: false
+
+  - name: evaluate initiate_failover
+    ansible.builtin.set_fact:
+      initiate_failover: true
+    when: ping_result_primary.rc !=0 # and ping_result_secondary.rc != 0 and http_alive.failed_when_result is false and remote_cluster_connected.failed_when_result is false # and remote_cluster.record[0].connection_status = "DISCONNECTED"
+
+  - name: output initiate_failover
+    debug:
+      var: initiate_failover
+
+  - name: end playbook if failover not needed 
+    ansible.builtin.meta: end_play
+    when:  initiate_failover is false
+
+  - name: Sleep and continue with play
+    ansible.builtin.wait_for:
+      timeout: 90    
+
+  - name: get all vms to identify replication target VMs # Modules vm, vm_info will return this as replication_source_vm_uuid, it will be UUID or empty string.
+    scale_computing.hypercore.vm_info:
+    register: vm_info
+
+  - name: clone all replicated vms and preserve mac - set DRtest tag #note - will skip if VM name already exists - added date + minute to name 
+    scale_computing.hypercore.vm_clone:
+      source_vm_name: "{{ workload }}"
+      preserve_mac_address: true
+      vm_name: "{{ workload }}-{{ '%Y-%m-%d_%M' | strftime }}-DR"
+      tags:
+        - Repatriated
+    retries: 3 # can error if last snapshot still being replicated
+    delay: 10
+    when: initiate_failover is true  #and ( item.vm_name == workload ) 
+#    loop: "{{ vm_info.records }}" # should build sub-list of replication targets
+    register: cloned_vms
+
+  - name: power on cloned vms
+    scale_computing.hypercore.vm_params:
+      power_state: start
+      vm_name: "{{ workload }}-{{ '%Y-%m-%d_%M' | strftime }}-DR"
+    when: item.changed is true
+    loop: "{{ cloned_vms.results }}" 
+
+#TODO - could add tests to determine VM and / or application is up and running / ready - check web port, etc.  could also put additional failover steps here like DNS update if needed
