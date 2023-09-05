@@ -1,19 +1,19 @@
 edge:  # See all group vars section at bottom
-  children: # todo - explore if this children level is actually required 
+  children:
     region1:  # production site clusters in region 1 - indy region
       children:
         staging: # clusters here for pre-production staging / testing
           hosts:
             "szt15b-01.lab.local":
-              hypercore_desired_version: 9.2.22.212325
               site_name: staging2
               hypercore_cluster_name: "staging-lab-dd"
-              hc_alt_host: "szt15b-02.lab.local"
-              SC_AUTH_METHOD: oidc
+              hc_alt_host: "szt15b-02.lab.local" # not currently used
+              SC_AUTH_METHOD: local
+
 
         corporate: # corporate owned stores
           hosts:
-            "vlb04a-01.lab.local": # store2
+            "vlb04a-01.lab.local":
               hypercore_desired_version: 9.3.0.212125
               site_name: store2
               hypercore_cluster_name: "vlb04a-lab-dd"
@@ -21,33 +21,39 @@ edge:  # See all group vars section at bottom
               pos_address: 10.6.42.21
 
             "vjb93a-02.lab.local":
-              hypercore_desired_version: 9.3.0.212125
               hc_alt_host: "vjb93a-01.lab.local"
               pos_address: 10.6.42.21
               site_name: store5
               hypercore_cluster_name: "vjb93a-lab-dd"
 
           vars: # corporate vars
-            SC_AUTH_METHOD: oidc
+            SC_AUTH_METHOD: local
+            deploy_security: true
+            deploy_iot: true
+            deploy_pos: true
+            deploy_pharmacy: true
 
         franchise: # franchise owned stores managed as a service
           hosts:
-            "vfz31a-01.lab.local": # store F1
-#              hypercore_desired_version: 9.2.21.212248
+            "vfz31a-01.lab.local":
               pos_address: 10.0.0.1
               site_name: storef1
               hypercore_cluster_name: "indyk8s-lab-dd"
 
-            "veb120a-01.lab.local": # store F2
+            "veb120a-01.lab.local":
               pos_address: 10.0.0.2
               site_name: storef2
               hypercore_cluster_name: "indyvms-lab-dd"
 
           vars: # franchise vars
-            hypercore_desired_version: 9.2.22.212325
             SC_AUTH_METHOD: local
+            deploy_security: false
+            deploy_iot: false
+            deploy_pos: true
+            deploy_pharmacy: true
 
       vars:  # region 1 group vars
+        hypercore_desired_version: 9.2.23.212418
         vm_image_url: 'smb://pm-edge;administrator:Scale2020!@192.168.1.248/azure-sync/ubuntu18_04-cloud-init'
         syslog_ip: '192.168.1.4'
         smbserver: 192.168.1.248
@@ -93,7 +99,7 @@ edge:  # See all group vars section at bottom
           # hypercore_desired_version: 9.2.17.211525
 
         "192.168.1.242.nip.io":  # store104
-          hypercore_desired_version: 9.2.22.212325 #9.1.24.211326 # experimental gpu passthrough
+          hypercore_desired_version: 9.2.22.212325 # 9.1.24.211326 # experimental gpu passthrough
           hypercore_cluster_name: "newyork-3270-dd"
           site_name: store104
           pos_address: 192.168.1.203
@@ -107,6 +113,10 @@ edge:  # See all group vars section at bottom
           support_tunnel: 3270
 
       vars:  # region 2 group vars
+        deploy_security: false
+        deploy_iot: false
+        deploy_pos: true
+        deploy_pharmacy: true
         vm_image_url: 'smb://pm-edge;administrator:Scale2020!@192.168.1.248/azure-sync/ubuntu18_04-cloud-init'
         syslog_ip: '192.168.1.4'
         smbserver: 192.168.1.248
@@ -124,10 +134,19 @@ edge:  # See all group vars section at bottom
           hc_alt_host: "ia01b-02.lab.local"
           site_name: gcu-dr
           pos_address: 10.6.42.22
-          hypercore_desired_version: 9.2.12.210899
+          hypercore_desired_version: 9.2.20.212005
           hypercore_cluster_name: "gcu-dr-dd"
+          deploy_security: false
+          deploy_iot: false
+          deploy_pos: true
+          deploy_pharmacy: false
 
   vars: # all group vars
+    deploy_security: true
+    deploy_iot: false
+    deploy_pos: true
+    deploy_pharmacy: true
+
     hypercore_desired_version: 9.2.22.212325 # view as desired minimum version for fleet
     scale_user: ansible
     scale_pass: ComplexPassword1234ans # be default ansible masks out what it think is passwords - so using simple password can conflict with VM names - etc.

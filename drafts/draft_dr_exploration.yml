@@ -1,18 +1,18 @@
-- name: Monitor source cluster and IPs and Initiate VM failover (clone/start) if source is completely down 
+- name: Monitor source cluster and IPs and Initiate VM failover (clone/start) if source is completely down
   hosts: all # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
   connection: ansible.builtin.local
   gather_facts: false
   strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
-  environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+  environment:  # if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
     SC_HOST: "https://{{ inventory_hostname }}"
     SC_USERNAME: "{{ scale_user }}"
     SC_PASSWORD: "{{ scale_pass }}"
   vars:
     primaryip: 192.168.1.246
     secondaryip: 192.168.1.250
-    http_check: 192.168.1.138 #"{{ primaryip }}"  #todo - make this optional 
+    http_check: 192.168.1.138 # "{{ primaryip }}"  #todo - make this optional
     http_check_port: 30001
-#    source_cluster: "charlotte-3272-dd" #not currently used - could be used to check remote_cluster_info connection_status 
+#    source_cluster: "charlotte-3272-dd" #not currently used - could be used to check remote_cluster_info connection_status
 
   #TODO / FUTURE - check if VM's are still running on source cluster, check replication status 
   # workflow to "move" to target - shutdown VM on source - wait for shutdown snapshot to complete replication - then clone to bring online on DR target
@@ -21,9 +21,9 @@
   # TODO - need way to detect if failover has already happened
 
   tasks:
-  - name: get remote cluster info
+  - name: Get remote cluster info
     scale_computing.hypercore.remote_cluster_info:
-    register: remote_cluster 
+    register: remote_cluster
 
   - name: Check and fail if source cluster is not "DISCONNECTED"
     debug:

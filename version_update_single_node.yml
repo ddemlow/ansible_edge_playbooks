@@ -32,6 +32,8 @@
       scale_computing.hypercore.time_zone_info:
       register: timezone
 
+#TODO - update below to use https://github.com/ScaleComputing/HyperCoreAnsibleCollection/tree/main/roles/check_local_time
+
     - name: get remote hour of day (using remote cluster) timezone # runs data command locally with TZ of remote cluster set 
       command: "date '+%H'"
       register: hour_remote
@@ -43,7 +45,7 @@
       debug:
         msg: remote time in "{{ timezone.record.zone }}" is "{{ hour_remote.stdout }}" local hour is  "{{ ansible_date_time.hour }}" 
 
-    - name: Update HyperCore single-node system to a desired version
+    - name: Update HyperCore single-node system to a desired version with VM shutdown and restart
       include_role:
         name: scale_computing.hypercore.version_update_single_node
       vars:

@@ -1,5 +1,6 @@
 ---
-# tasks file for hypercore_config role
+# tasks file for hypercore_config role 
+# //TODO - use collection config role https://github.com/ScaleComputing/HyperCoreAnsibleCollection/tree/main/roles/cluster_config
 
 - name: Create ansible user account
   scale_computing.hypercore.user:

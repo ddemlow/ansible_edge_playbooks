@@ -12,12 +12,13 @@
     SC_TIMEOUT: 120
 
   roles:
-    - random_site_name
+    - { role: random_site_name, when: site_name is not defined }
     - hypercore_config
     - template
     - schedules
-    - pharmacy
-    - pos
-    - security
-    - iot # long running window iot deployment and configuration
-  
+    - { role: pharmacy, when: "'region2' in group_names" } # deploy_pharmacy is true }
+    - { role: pos, when: deploy_pos is true }
+    - { role: security, when: deploy_security is true }
+    - { role: iot, when: deploy_iot is true }  # long running window iot deployment and configuration
+
+# //TODO - above does not remove previously deployed roles when changed to false.  could add to cleanup playbook
