@@ -1,0 +1,30 @@
+---
+- name: clean up previously used cloud-init-* iso images
+  hosts: edge # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
+  connection: ansible.builtin.local
+  gather_facts: false
+  strategy: host_pinned #allows each cluster to start next task before all clusters have finished current task
+  environment:  # if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user }}"
+    SC_PASSWORD: "{{ scale_pass }}"
+    SC_TIMEOUT: 10000
+  vars:
+    mount_limit: 1 # change to 1 or higher to deleted mounted cloud-init isos - 0 will only delete "orphaned" and unmounted cloud-init-*.iso s
+# Api / iso module will allow ISO media to be deleted even if mounted by VMs.  If VM is running they will still have access to ephemeral copy until VM domain is stopped
+
+  tasks:
+  - name: Get hypercore iso info
+    scale_computing.hypercore.iso_info:
+    register: iso_info
+
+  - name: Output iso_info
+    ansible.builtin.debug:
+      var: iso_info
+
+  - name: Delete unmounted cloud-init isos
+    scale_computing.hypercore.iso:
+      name: "{{ item.name }}"
+      state: absent
+    when: item.mounts | length == mount_limit and 'cloud-init-' in item.name
+    loop: "{{ iso_info.records }}"
