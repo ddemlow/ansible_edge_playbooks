@@ -1,5 +1,5 @@
 ---
-- name: clean up previously used cloud-init-* iso images
+- name: Clean up previously used cloud-init-* iso images
   hosts: edge # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
   connection: ansible.builtin.local
   gather_facts: false
@@ -22,7 +22,7 @@
     ansible.builtin.debug:
       var: iso_info
 
-  - name: Delete unmounted cloud-init isos
+  - name: Delete cloud-init isos based on mount_limit
     scale_computing.hypercore.iso:
       name: "{{ item.name }}"
       state: absent
