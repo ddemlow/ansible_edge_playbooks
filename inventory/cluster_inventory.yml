@@ -6,17 +6,15 @@ edge:  # See all group vars section at bottom
           hosts:
             "szt15b-01.lab.local":
               site_name: staging2
-              hypercore_cluster_name: "staging-lab-dd"
+              hypercore_cluster_name: "staging-lab"
               hc_alt_host: "szt15b-02.lab.local" # not currently used
               SC_AUTH_METHOD: local
-
 
         corporate: # corporate owned stores
           hosts:
             "vlb04a-01.lab.local":
-              hypercore_desired_version: 9.3.0.212125
               site_name: store2
-              hypercore_cluster_name: "vlb04a-lab-dd"
+              hypercore_cluster_name: "vlb04a-indy"
               hc_alt_host: "vlb04a-01.lab.local"
               pos_address: 10.6.42.21
 
@@ -24,9 +22,10 @@ edge:  # See all group vars section at bottom
               hc_alt_host: "vjb93a-01.lab.local"
               pos_address: 10.6.42.21
               site_name: store5
-              hypercore_cluster_name: "vjb93a-lab-dd"
+              hypercore_cluster_name: "vjb93a-indy"
 
           vars: # corporate vars
+            hypercore_desired_version: 9.3.1.212486
             SC_AUTH_METHOD: local
             deploy_security: true
             deploy_iot: true
@@ -38,12 +37,12 @@ edge:  # See all group vars section at bottom
             "vfz31a-01.lab.local":
               pos_address: 10.0.0.1
               site_name: storef1
-              hypercore_cluster_name: "indyk8s-lab-dd"
+              hypercore_cluster_name: "k8s-indy"
 
             "veb120a-01.lab.local":
               pos_address: 10.0.0.2
               site_name: storef2
-              hypercore_cluster_name: "indyvms-lab-dd"
+              hypercore_cluster_name: "vms-indy"
 
           vars: # franchise vars
             SC_AUTH_METHOD: local
@@ -53,7 +52,7 @@ edge:  # See all group vars section at bottom
             deploy_pharmacy: true
 
       vars:  # region 1 group vars
-        hypercore_desired_version: 9.2.23.212418
+        hypercore_desired_version: 9.2.24.212633
         vm_image_url: 'smb://pm-edge;administrator:Scale2020!@192.168.1.248/azure-sync/ubuntu18_04-cloud-init'
         syslog_ip: '192.168.1.4'
         smbserver: 192.168.1.248
@@ -68,9 +67,9 @@ edge:  # See all group vars section at bottom
     region2: # production site clusters in region 2 - westfield region
       hosts:
         "192.168.1.240.nip.io": # store101i
-          hypercore_desired_version: 9.2.22.212325
+          hypercore_desired_version: 9.2.24.212633
           site_name: store101
-          hypercore_cluster_name: "westfield-3271-dd"
+          hypercore_cluster_name: "westfield-3271"
           hc_alt_host: "192.168.1.241"
           pos_address: 192.168.1.200
           important_vms: |  # important vms that should be running also controls start order via playbook
@@ -81,26 +80,9 @@ edge:  # See all group vars section at bottom
             - adfs-sso
           support_tunnel: 3271 # or false
 
-        "192.168.1.230":
-          hypercore_desired_version: 9.3.0.212125
-          hypercore_cluster_name: "nuc11-dd-westfield"
-          site_name: store1111
-          support_tunnel: 3276  # or false
-
-        "192.168.1.246.nip.io":  # store10
-          hypercore_desired_version: 9.2.22.212325
-          hypercore_cluster_name: "charlotte-3272-dd"
-          pos_address: 192.168.1.201
-          site_name: store102
-          important_vms: |
-            - acronisAppliance
-          support_tunnel: 3272
-          pharm_ram: "{{ '2 GB' | human_to_bytes }}"
-          # hypercore_desired_version: 9.2.17.211525
-
         "192.168.1.242.nip.io":  # store104
           hypercore_desired_version: 9.2.22.212325 # 9.1.24.211326 # experimental gpu passthrough
-          hypercore_cluster_name: "newyork-3270-dd"
+          hypercore_cluster_name: "newyork-3270"
           site_name: store104
           pos_address: 192.168.1.203
           pharm_address: 192.168.1.204
@@ -128,14 +110,79 @@ edge:  # See all group vars section at bottom
         timeSource: 192.168.1.42
         pharm_ram: "{{ '4 GB' | human_to_bytes }}"
 
+    region3: # production site clusters in region 3 - mako region
+      hosts:
+        "192.168.0.230":
+          hypercore_desired_version: 9.3.0.212125
+          hypercore_cluster_name: "mako-3276"
+          site_name: mako1111
+          support_tunnel: 3276  # or false
+
+        "192.168.0.246.nip.io":  # store10
+          hypercore_desired_version: 9.2.24.212633
+          hypercore_cluster_name: "charlotte-3272"
+          pos_address: 192.168.1.201
+          site_name: mako102
+          important_vms: |
+            - acronisAppliance
+          support_tunnel: 3272
+          pharm_ram: "{{ '2 GB' | human_to_bytes }}"
+
+      vars:  # region 2 group vars
+        deploy_security: false
+        deploy_iot: false
+        deploy_pos: true
+        deploy_pharmacy: true
+        vm_image_url: 'smb://pm-edge;administrator:Scale2020!@192.168.1.248/azure-sync/ubuntu18_04-cloud-init'
+        syslog_ip: '192.168.1.4'
+        smbserver: 192.168.1.248
+        smbpath: /azure-sync/ubuntu20_04-cloud-init
+        winsmbpath: /azure-sync/win10IoT-uefi-cloudbase
+        smbusername: pm-edge;administrator
+        smbpassword: Scale2020!
+        httpserver: 10.100.15.187
+        timeSource: 192.168.1.42
+        pharm_ram: "{{ '4 GB' | human_to_bytes }}"
+
+    region4: # production site clusters in region 4 - marketing region
+      hosts:
+        "192.168.199.11":
+          hypercore_cluster_name: "SC-MKT-T1"
+          site_name: mktt1
+          support_tunnel: 3010  # or false
+          pharm_ram: "{{ '2 GB' | human_to_bytes }}"
+          scale_user: admin
+          scale_pass: $cale2023! # be default ansible masks out what it think is passwords - so using simple password can conflict with VM names - etc.
+          scale_admin_user: admin
+          scale_admin_pass: admin
+          # hypercore_desired_version: 9.2.17.211525
+
+      vars:  # region 4 group vars
+        deploy_security: false
+        deploy_iot: false
+        deploy_pos: true
+        deploy_pharmacy: true
+        vm_image_url: 'smb://pm-edge;administrator:Scale2020!@192.168.1.248/azure-sync/ubuntu18_04-cloud-init'
+        syslog_ip: '192.168.1.4'
+        smbserver: 192.168.1.248
+        smbpath: /azure-sync/ubuntu20_04-cloud-init
+        winsmbpath: /azure-sync/win10IoT-uefi-cloudbase
+        smbusername: pm-edge;administrator
+        smbpassword: Scale2020!
+        httpserver: 10.100.15.187
+        timeSource: 192.168.1.42
+        pharm_ram: "{{ '4 GB' | human_to_bytes }}"
+
+
+
     gcu: # production site clusters in region 3 - gce
       hosts:
         "10.6.43.98":  # gce
           hc_alt_host: "ia01b-02.lab.local"
           site_name: gcu-dr
           pos_address: 10.6.42.22
-          hypercore_desired_version: 9.2.20.212005
-          hypercore_cluster_name: "gcu-dr-dd"
+#          hypercore_desired_version: 9.2.22.212325
+          hypercore_cluster_name: "gcu-dr"
           deploy_security: false
           deploy_iot: false
           deploy_pos: true
@@ -147,7 +194,7 @@ edge:  # See all group vars section at bottom
     deploy_pos: true
     deploy_pharmacy: true
 
-    hypercore_desired_version: 9.2.22.212325 # view as desired minimum version for fleet
+    hypercore_desired_version: 9.2.24.212633 # view as desired minimum version for fleet
     scale_user: ansible
     scale_pass: ComplexPassword1234ans # be default ansible masks out what it think is passwords - so using simple password can conflict with VM names - etc.
     scale_admin_user: admin
@@ -170,7 +217,7 @@ edge:  # See all group vars section at bottom
     scopes: openid+profile
     company_name: Scale Computing
     contact: Dave Demlow
-    phone: 3173850200
+    phone: 3175551212
     regemail: dave@scalecomputing.com
 
     pharm_ram: "{{ '2 GB' | human_to_bytes }}"

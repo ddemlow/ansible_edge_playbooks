@@ -10,10 +10,22 @@
     SC_PASSWORD: "{{ scale_pass }}"
     SC_TIMEOUT: 10000
   vars:
-    mount_limit: 1 # change to 1 or higher to deleted mounted cloud-init isos - 0 will only delete "orphaned" and unmounted cloud-init-*.iso s
+    mount_limit: 0 # change to 1 or higher to deleted mounted cloud-init isos - 0 will only delete "orphaned" and unmounted cloud-init-*.iso s
 # Api / iso module will allow ISO media to be deleted even if mounted by VMs.  If VM is running they will still have access to ephemeral copy until VM domain is stopped
 
   tasks:
+  - name: get all vm info
+    scale_computing.hypercore.vm_info:
+    register: vm_info
+
+  - name: output vm_info
+    ansible.builtin.debug:
+      msg: "{{ vm_info }}"
+
+# need vm_info.records.disks.iso_name - is there a way to get all disks on cluster? appears not
+# for original problem - iso_info does return vms with media mounted - could use that to eject iso before deleting media
+# for current cleanup easiest may be playbook to stop and restart all VMs - steal code from single node update? 
+
   - name: Get hypercore iso info
     scale_computing.hypercore.iso_info:
     register: iso_info

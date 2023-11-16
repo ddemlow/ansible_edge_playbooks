@@ -1,9 +1,25 @@
 ---
 # tasks file for iso_cleanup
-  - name: Clean up old isos  # example of removing any old isos #todo - look for cloud-init-* with 0 mounts
+  - name: Clean up old isos  # example of removing any old isos
     scale_computing.hypercore.iso:
-      vm_name: "{{ item }}"
+      name: "{{ item }}"
       state: absent
     loop:
       - scale-guest-tools-3.0.iso
+# Api / iso module will allow ISO media to be deleted even if mounted by VMs.  If VM is running they will still have access to ephemeral copy until VM domain is stopped
+
+  - name: Get hypercore iso info
+    scale_computing.hypercore.iso_info:
+    register: iso_info
+
+  - name: Output iso_info
+    ansible.builtin.debug:
+      var: iso_info
+
+  - name: Delete unmounted cloud-init isos
+    scale_computing.hypercore.iso:
+      name: "{{ item.name }}"
+      state: absent
+    when: item.mounts | length == 0 and 'cloud-init-' in item.name
+    loop: "{{ iso_info.records }}"
       

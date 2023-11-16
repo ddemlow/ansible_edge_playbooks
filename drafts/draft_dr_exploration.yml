@@ -14,7 +14,7 @@
     http_check_port: 30001
 #    source_cluster: "charlotte-3272-dd" #not currently used - could be used to check remote_cluster_info connection_status
 
-  #TODO / FUTURE - check if VM's are still running on source cluster, check replication status 
+  # TODO / FUTURE - check if VM's are still running on source cluster, check replication status 
   # workflow to "move" to target - shutdown VM on source - wait for shutdown snapshot to complete replication - then clone to bring online on DR target
   # workflow to move -DR VMs back 
   # question - if multiple remote clusters - is there a way to tell which vms came from specific cluster via ansible? does not appear so in target api - could maybe set tags on source VMs
