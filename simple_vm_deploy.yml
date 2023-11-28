@@ -2,7 +2,7 @@
 - name: Simple vm deploy #edit vmname variable - use -l filter to specify cluster vs. full inventory
   hosts: edge
   vars:
-    - vmname: fledge2
+    - vmname: ubuntu
   connection: local
   gather_facts: false
   strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
@@ -51,7 +51,7 @@
             apt: {sources: {docker.list: {source: 'deb [arch=amd64] https://download.docker.com/linux/ubuntu $RELEASE stable', keyid: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88}}}
             package_update: true
             package_upgrade: true
-            packages: [qemu-guest-agent, unzip]
+            packages: [qemu-guest-agent, docker-ce, docker-ce-cli, docker-compose, ansible, git, unzip]
             bootcmd:
               - [ sh, -c, 'sudo echo GRUB_CMDLINE_LINUX="nomodeset" >> /etc/default/grub' ]
               - [ sh, -c, 'sudo echo GRUB_GFXPAYLOAD_LINUX="1024x768" >> /etc/default/grub' ]
@@ -66,6 +66,8 @@
                 ExecStart=
                 ExecStart=/usr/bin/dockerd -H unix:// -H tcp://0.0.0.0:2375
               path: /etc/systemd/system/docker.service.d/options.conf
+            - content: "{{ inventory_hostname }}"
+              path: /clusterip.txt 
           meta_data: |
             dsmode: local
             local-hostname: "{{ vmname }}"
@@ -93,7 +95,6 @@
         memory: "{{ '4 GB' | human_to_bytes }}"
         description:
         tags:
-          - "{{vmname}}"
           - ansible
           - "{{ site_name }}"
           - ansible_group__"{{vmname}}" # this will create tag used by hypercore inventory plugin when executing towards VM hosts
