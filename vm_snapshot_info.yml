@@ -19,3 +19,17 @@
     - name: debug
       debug: 
         var: snapshot
+
+    - name: Convert snapshot data to CSV format
+      set_fact:
+        snapshot_csv: "{{ snapshot.records | map('json_query', '{label: label, vm_name: vm_name, snapshot_uuid: snapshot_uuid}') | list | map('to_json') | join('\n') }}"
+  
+    - name: Write snapshot data to a CSV file
+      copy:
+        content: "{{ snapshot_csv }}"
+        dest: "snapshot_info.csv"
+
+    - name: Write snapshot data to a JSON file
+      copy:
+        content: "{{ snapshot.records | to_nice_json }}"
+        dest: "snapshot_info.json"

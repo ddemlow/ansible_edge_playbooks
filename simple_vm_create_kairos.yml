@@ -1,0 +1,261 @@
+---
+- name: Simple vm deploy #edit vmname variable - use -l filter to specify cluster vs. full inventory
+  hosts: all
+  vars:
+    - vmname: kairos-243
+  connection: ansible.builtin.local
+  gather_facts: false
+  strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
+  environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user }}"
+    SC_PASSWORD: "{{ scale_pass }}"  
+
+  tasks:
+  # - name: Create project directory /tmp (if it doesn't exist already)
+  #   file: state=directory path=~/tmp
+
+  # - name: Download ISO image from http://tinycorelinux.net/13.x/x86/release/TinyCore-current.iso and save it into /tmp/TinyCore-vm-integration.iso
+  #   get_url: url=http://tinycorelinux.net/13.x/x86/release/TinyCore-current.iso dest=~/tmp/TinyCore-vm-integration.iso
+
+  # - name: Upload ISO image TinyCore-vm-integration.iso to HyperCore API
+  #   scale_computing.hypercore.iso:
+  #     cluster_instance:
+  #       host: "https://{{inventory_hostname }}"
+  #       username: "{{scale_user}}"
+  #       password: "{{scale_pass}}"
+  #     name: "TinyCore-current.iso"
+  #     source: "/Users/davedemlow/Downloads/TinyCore-current.iso"
+  #     state: present
+  #   register: result
+
+  - name: Create and start the VM with disks, nics and boot devices set. Attach ISO onto the VM. Add cloud init data
+    scale_computing.hypercore.vm:
+      cluster_instance:
+        host: "https://{{inventory_hostname }}"
+        username: "{{scale_user}}"
+        password: "{{scale_pass}}"   
+      vm_name: "{{ vmname }}"
+      description: kairos test 
+      state: present
+      tags:
+        - kairos
+      memory: "{{ '6 GB' | human_to_bytes }}"
+      vcpu: 4
+      power_state: start
+      disks:
+        # - type: ide_cdrom
+        #   disk_slot: 0
+        #   iso_name: ""
+        - type: ide_cdrom
+          disk_slot: 0
+          iso_name: "kairos-opensuse-leap-15.5-standard-amd64-generic-v2.4.3-k3sv1.26.9+k3s1.iso"
+        - type: virtio_disk
+          disk_slot: 0
+          size: "{{ '50 GB' | human_to_bytes }}"
+        - type: nvram
+          disk_slot: 1
+      nics:
+        - vlan: 0
+          type: virtio
+      boot_devices:
+        - type: virtio_disk
+          disk_slot: 0
+        - type: ide_cdrom
+          disk_slot: 0
+      cloud_init:
+        user_data: |
+          #cloud-config
+          install:
+            device: "/dev/vda"
+            reboot: true
+            poweroff: false
+            auto: true
+            encrypted_partitions:
+            - COS_PERSISTENT
+          users:
+          - name: "kairos"
+            passwd: "kairos"
+            ssh_authorized_keys:
+            - github:ddemlow
+          - name: "testuser"
+            passwd: "testuser"
+            ssh_authorized_keys:
+            - github:ddemlow
+            groups:
+            - "admin"
+          k3s:
+            enabled: true
+          hostname: "{{ vmname }}"
+          bundles:
+          - targets:
+              - run://quay.io/kairos/community-bundles:system-upgrade-controller_latest
+          name: "Deploy fleet out of the box"
+          stages:
+            boot:
+              - name: "Copy fleet deployment files"
+                files:
+                  - path: /var/lib/rancher/k3s/server/manifests/fleet-config.yaml
+                    content: |
+                      apiVersion: v1
+                      kind: Namespace
+                      metadata:
+                        name: cattle-system
+                      ---
+                      apiVersion: helm.cattle.io/v1
+                      kind: HelmChart
+                      metadata:
+                        name: fleet-crd
+                        namespace: cattle-system
+                      spec:
+                        chart: https://github.com/rancher/fleet/releases/download/v0.3.8/fleet-crd-0.3.8.tgz
+                      ---
+                      apiVersion: helm.cattle.io/v1
+                      kind: HelmChart
+                      metadata:
+                        name: fleet
+                        namespace: cattle-system
+                      spec:
+                        chart: https://github.com/rancher/fleet/releases/download/v0.3.8/fleet-0.3.8.tgz
+                  - path: /var/lib/rancher/k3s/server/manifests/portainer-agent-edge-k8s.yaml
+                    content: |
+                      apiVersion: v1
+                      kind: Namespace
+                      metadata:
+                        name: portainer
+                      ---
+                      apiVersion: v1
+                      kind: ServiceAccount
+                      metadata:
+                        name: portainer-sa-clusteradmin
+                        namespace: portainer
+                      ---
+                      apiVersion: rbac.authorization.k8s.io/v1
+                      kind: ClusterRoleBinding
+                      metadata:
+                        name: portainer-crb-clusteradmin
+                      roleRef:
+                        apiGroup: rbac.authorization.k8s.io
+                        kind: ClusterRole
+                        name: cluster-admin
+                      subjects:
+                        - kind: ServiceAccount
+                          name: portainer-sa-clusteradmin
+                          namespace: portainer
+                      # Optional: can be added to expose the agent port 80 to associate an Edge key.
+                      # ---
+                      # apiVersion: v1
+                      # kind: Service
+                      # metadata:
+                      #   name: portainer-agent
+                      #   namespace: portainer
+                      # spec:
+                      #   type: LoadBalancer
+                      #   selector:
+                      #     app: portainer-agent
+                      #   ports:
+                      #     - name: http
+                      #       protocol: TCP
+                      #       port: 80
+                      #       targetPort: 80
+                      ---
+                      apiVersion: v1
+                      kind: Service
+                      metadata:
+                        name: portainer-agent
+                        namespace: portainer
+                      spec:
+                        clusterIP: None
+                        selector:
+                          app: portainer-agent
+                      ---
+                      apiVersion: apps/v1
+                      kind: Deployment
+                      metadata:
+                        name: portainer-agent
+                        namespace: portainer
+                      spec:
+                        selector:
+                          matchLabels:
+                            app: portainer-agent
+                        template:
+                          metadata:
+                            labels:
+                              app: portainer-agent
+                          spec:
+                            serviceAccountName: portainer-sa-clusteradmin
+                            containers:
+                              - name: portainer-agent
+                                image: portainer/agent:2.19.1
+                                imagePullPolicy: Always
+                                env:
+                                  - name: LOG_LEVEL
+                                    value: INFO
+                                  - name: KUBERNETES_POD_IP
+                                    valueFrom:
+                                      fieldRef:
+                                        fieldPath: status.podIP
+                                  - name: EDGE
+                                    value: "1"
+                                  - name: AGENT_CLUSTER_ADDR
+                                    value: "portainer-agent"
+                                  - name: AGENT_SECRET
+                                    valueFrom:
+                                      configMapKeyRef:
+                                        name: portainer-agent-edge
+                                        key: EDGE_SECRET
+                                        optional: true
+                                  - name: EDGE_KEY
+                                    valueFrom:
+                                      secretKeyRef:
+                                        name: portainer-agent-edge-key
+                                        key: edge.key
+                                envFrom:
+                                  - configMapRef:
+                                      name: portainer-agent-edge
+                                ports:
+                                  - containerPort: 9001
+                                    protocol: TCP
+                                  - containerPort: 80
+                                    protocol: TCP
+          runcmd:
+          - export PORTAINER_EDGE_ID=$(hostname)
+          - curl https://downloads.portainer.io/ee2-19/portainer-edge-agent-setup.sh -o /oem/portainer-edge-agent-setup.sh
+          - curl https://downloads.portainer.io/ee2-19/portainer-edge-agent-setup.sh -o /usr/local/portainer-edge-agent-setup.sh
+          - /bin/bash /oem/portainer-edge-agent-setup.sh  "{{ vmname }}" "aHR0cHM6Ly8yMC44OC4yMi4yMjc6OTQ0M3wyMC44OC4yMi4yMjc6ODAwMHwydXByOUtuYTd6ZHBNWExNMm9meDNubHZEOHh2THpLVjN5WnlXM1lsWFdvPXww" "1" "" ""
+          - /bin/bash /usr/local/portainer-edge-agent-setup.sh  "{{ vmname }}" "aHR0cHM6Ly8yMC44OC4yMi4yMjc6OTQ0M3wyMC44OC4yMi4yMjc6ODAwMHwydXByOUtuYTd6ZHBNWExNMm9meDNubHZEOHh2THpLVjN5WnlXM1lsWFdvPXww" "1" "" ""
+          # p2p:
+          #   disable_dht: true
+          #   auto:
+          #     ha:
+          #       # Enables HA control-plane
+          #       enable: true
+          #       # number of HA master node (beside the one used for init) for the control-plane
+          #       master_nodes: 2
+          #   network_token: "b3RwOgogIGRodDoKICAgIGludGVydmFsOiA5MDAwCiAgICBrZXk6IFFJbVpQVkhoMXhXZVl4TDZRMnRSYTN5dGVNZlhhTzJIeHJRZzdRNmZ3UGgKICAgIGxlbmd0aDogNDMKICBjcnlwdG86CiAgICBpbnRlcnZhbDogOTAwMAogICAga2V5OiBEQUhZblI0WFExWjMwanN2OW04bklzU2JVU0gzamo3REY0dUpEU3ZRWkw2CiAgICBsZW5ndGg6IDQzCnJvb206IEpkMmZTN21NblhwOXluQlNZN1RZMzJYSm9sZUV1c3NVOGFYaU9DdEcyS1IKcmVuZGV6dm91czogMzFXeGpSQk1SM2JSalNKMFpSSHZoOW1rNGNybkpTZElGRDdMMlNJd3pvVwptZG5zOiA4MGc1S1dTTk5pQXRCT1ZvRGJYMXpESGVHMnI3MEFvZmlQYVVhdHEwWHZFCm1heF9tZXNzYWdlX3NpemU6IDIwOTcxNTIwCg=="
+      machine_type: BIOS
+      operating_system: os_other
+    register: vm_created
+
+
+    # - name: Disk desired configuration for "{{ vmname }}"
+    #   scale_computing.hypercore.vm_disk:
+    #     vm_name: "{{ vmname }}"
+    #     items:
+    #       - disk_slot: 0
+    #         type: virtio_disk
+    #         size: "{{ '100 GB' | human_to_bytes }}" # 50GB | human to bytes results in 53.7GB VSD in Hypercore
+    #     state: present
+
+    # - name: Vm desired configuration and state for "{{ vmname }}"
+    #   scale_computing.hypercore.vm_params:
+    #     vm_name: "{{vmname}}"
+    #     memory: "{{ '4 GB' | human_to_bytes }}"
+    #     description:
+    #     tags:
+    #       - "{{vmname}}"
+    #       - ansible
+    #       - "{{ site_name }}"
+    #       - ansible_group__"{{vmname}}" # this will create tag used by hypercore inventory plugin when executing towards VM hosts
+    #     vcpu: 4
+    #     power_state: start

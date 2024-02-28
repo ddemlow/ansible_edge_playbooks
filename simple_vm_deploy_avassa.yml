@@ -53,7 +53,7 @@
       loop: "{{ image_url }}" 
       ignore_errors: false
 
-  #TODO - could use a handler to force update virtual disk attached to template only if there is a new download or upload?
+  # TODO #2 - could use a handler to force update virtual disk attached to template only if there is a new download or upload?
 
     - name: Get info about template VM {{ image_name }}
       scale_computing.hypercore.vm_info:
@@ -83,7 +83,8 @@
       when:  vm_info_result.records | length == 0   #only create VM if it doesn't already exist - else would delete existing template disk
       register: template
 
-    - name: Attach uploaded virtual disk to  "{{ image_name }}" template  # this will attach latest image every time - should there be way to only attach if not exist?
+#TODO - may want a way to force update of virtual disk IN TEMPLATE vm - maybe as simple as delete template if the image is updated?
+    - name: Attach uploaded virtual disk to  "{{ image_name }}" template  # this will NOT attach / update latest image 
       scale_computing.hypercore.virtual_disk_attach:
         name: "{{ image_name }}"
         vm_name: "{{ image_name }}"
