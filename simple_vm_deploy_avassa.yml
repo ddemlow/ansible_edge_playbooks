@@ -7,7 +7,7 @@
     image_url: 
       - "https://cloud.debian.org/images/cloud/bullseye/latest/debian-11-generic-amd64.qcow2"
     image_path: "/Users/davedemlow/tmp/" #~/tmp/" #path to download file
-    avassa_ct_api: "api.sc-platform.sc-platform.avassa.net"
+    avassa_ct_api: "api.demo.sc-platform.avassa.net"
     avassa_ct_user: "supd@scalecomputing.com"
     avassa_ct_password: "supdsupd"
     avassa_ct_deployment: "popcorn-deployment"
@@ -142,7 +142,7 @@
                     parent-site: control-tower
                   ingress-allocation-method: dhcp
                   hosts:
-                    - host-id: $(curl "https://{{ avassa_ct_api }}"/scripts/get-host-id|sh)
+                    - host-id: $(curl -s https://{{ avassa_ct_api }}/install | sudo sh -s -- --get-host-id)
                 EOF
               - |
                 export HOSTNAME=$(cat /proc/sys/kernel/hostname)
