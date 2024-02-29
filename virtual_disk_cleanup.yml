@@ -1,0 +1,35 @@
+---
+- name: clean up in process virtual disk uploads using hypercore_virtual_disk module 
+  hosts: all
+  become: false
+  gather_facts: false
+  connection: ansible.builtin.local
+  strategy: host_pinned
+  environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user }}"
+    SC_PASSWORD: "{{ scale_pass }}"
+    SC_TIMEOUT: 2000000
+    SC_AUTH_METHOD: local
+
+  tasks:
+    - name: Get Information About the uploaded Virtual Disk in HyperCore
+      scale_computing.hypercore.virtual_disk_info:
+      register: diskmedia
+
+    - name: Collect disks starting with 'uploading-'
+      set_fact:
+        disks_to_delete: "{{ diskmedia.records | selectattr('name', 'match', '^uploading-.*') | map(attribute='name') | list }}"
+#TODO: add converting- 
+
+    - name: Debug - Show disks to delete
+      debug:
+        msg: "{{ disks_to_delete }}"
+
+    - name: Delete uploading- virtual disks
+      scale_computing.hypercore.virtual_disk:
+        name: "{{ item }}"
+        state: absent
+      loop: "{{ disks_to_delete }}"
+      when: disks_to_delete is defined and disks_to_delete | length > 0
+      register: deleted
