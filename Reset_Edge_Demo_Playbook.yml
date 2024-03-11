@@ -42,7 +42,14 @@
       - "pharmacy-site"
       - "iot-site"
       - "security-site"
-      - "ubuntu20_04"
+#      - "ubuntu20_04"
+      - "{{ site_name }}-avassa"
+      - "{{ site_name }}-avassa-clone"
+      - "jeffdemo"
+      - "jeff-demo1"
+      - "jeff-demo1-clone"
+      - "group5-kicknucleus"
+      - "group6"
 #      - "win10IoT-uefi-cloudbase"  #note older hypercore has not uefi version pre-imported
 
   - name: Cleanup old snapshot schedule

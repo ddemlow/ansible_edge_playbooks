@@ -1,4 +1,5 @@
 ---
+#note - this exposed an issue where mounted iso's can be deleted from media library via api resulting in VM's that can't live migrate while iso ephemeral clone is still attached to vm
 - name: Clean up previously used cloud-init-* iso images
   hosts: edge # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
   connection: ansible.builtin.local
