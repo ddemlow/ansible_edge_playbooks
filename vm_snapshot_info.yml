@@ -1,17 +1,26 @@
 ---
-- name: test vm_snapshot_info
+- name: Test vm_snapshot_info
   hosts: all
   become: false
   gather_facts: false
   connection: ansible.builtin.local
   strategy: host_pinned
-  environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+  environment:  # if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
     SC_HOST: "https://{{ inventory_hostname }}"
     SC_USERNAME: "{{ scale_user }}"
     SC_PASSWORD: "{{ scale_pass }}"
     SC_TIMEOUT: 600
 
   tasks:
+    - name: get vm info
+      scale_computing.hypercore.vm_info:
+      register: vm
+
+    - name: debug
+      debug: 
+        var: vm
+
+
     - name: get snapshot info
       scale_computing.hypercore.vm_snapshot_info:
       register: snapshot
@@ -20,16 +29,16 @@
       debug: 
         var: snapshot
 
-    - name: Convert snapshot data to CSV format
-      set_fact:
-        snapshot_csv: "{{ snapshot.records | map('json_query', '{label: label, vm_name: vm_name, snapshot_uuid: snapshot_uuid}') | list | map('to_json') | join('\n') }}"
+    # - name: Convert snapshot data to CSV format
+    #   set_fact:
+    #     snapshot_csv: "{{ snapshot.records | map('json_query', '{label: label, vm_name: vm_name, snapshot_uuid: snapshot_uuid}') | list | map('to_json') | join('\n') }}"
   
-    - name: Write snapshot data to a CSV file
-      copy:
-        content: "{{ snapshot_csv }}"
-        dest: "snapshot_info.csv"
+    # - name: Write snapshot data to a CSV file
+    #   copy:
+    #     content: "{{ snapshot_csv }}"
+    #     dest: "snapshot_info.csv"
 
-    - name: Write snapshot data to a JSON file
-      copy:
-        content: "{{ snapshot.records | to_nice_json }}"
-        dest: "snapshot_info.json"
+    # - name: Write snapshot data to a JSON file
+    #   copy:
+    #     content: "{{ snapshot.records | to_nice_json }}"
+    #     dest: "snapshot_info.json"

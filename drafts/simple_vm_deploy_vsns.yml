@@ -1,0 +1,269 @@
+---
+# Performs iso download from internal server, upload to cluster, configuration of vsns vm using cloud-init to provide zerotouch config data, 
+# waits for imaging, restarts vm, waits for cluster nominal and registers with nucleus and does minimal cluster config
+# example usage based on my fleet inventory ansible-playbook -l vfz31a-01.lab.local --extra-vars="index=81" ./drafts/simple_vm_deploy_vsns.yml 
+# ad hoc - edit playbook or pass vars - ansible-playbook -i clusterip, --extra-vars="index=81, scale_user=admin, scale_password=admin" simple_vm_deploy_vsns.yml  
+- name: Virtual HyperCore node deploy - Scale Internal #edit vmname variable - use -l filter to specify cluster vs. full inventory
+  hosts: edge
+  vars:
+    - index: "72"
+    - vlan: "164"
+    - vmname: "vsns{{ index }}"
+    - identifier: "7c:4c:dd:00:00:{{ index }}"
+    - lanip: "10.6.42.{{index}}"
+    - backplaneip: "192.6.42.{{ index }}"
+    - lanNetmask: 255.255.252.0
+    - lanGateway: 10.6.43.254
+    - backplaneNetmask: 255.255.255.0
+    - backplaneVLANID: 527
+    - template: "{{ build_url | split('/') | last }}"
+    - disk_size: "{{ '2TB ' | human_to_bytes }}"
+    - delete_previous: true
+    - build: 214103  # TODO note build # can be any release - may need to go to folder and look up matching pattern iso test or release
+    - flag: test
+    - build_url: "http://releaseengineering.lab.local/builds/automated/{{ build }}/install/iso/scale-9.5.0.{{ build }}.{{ flag}}.iso"
+    - hc_iso_name: "{{ build_url | split('/') | last }}"
+    - meta_data: |
+        {
+          "cluster": {
+            "uuid": "70c8905d-ad0a-4f{{index}}-a147-9243bbf618{{index}}",
+            "clusterName": "{{ vmname }}",
+            "lanGateway": "{{ lanGateway }}",
+            "lanNetmask": "{{ lanNetmask }}",
+            "backplaneNetmask": "{{ backplaneNetmask }}",
+            "backplaneVLANID": "{{ backplaneVLANID }}",
+            "initializingNode": "{{ backplaneip }}",
+            "priority": 1675300749148,
+            "nodes": [{
+              "identifier": "{{ identifier }}",
+              "name": "EN-Im4feu-32",
+              "model": "EN-Im4feu-32",
+              "lanIP": "{{ lanip }}",
+              "backplaneIP": "{{ backplaneip }}",
+              "softwareSerialNumber": "0010-0000-0000-008b",
+              "bypassNetworkCheck": "yes"
+            }]
+          }
+        }
+  connection: local
+  gather_facts: false
+  #strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
+  environment:  # if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user }}"
+    SC_PASSWORD: "{{ scale_pass }}"
+
+  tasks:
+  - name: Check if ISO image already exists locally
+    ansible.builtin.stat:
+      path: "~/Downloads/{{ build_url | regex_replace('^.*/', '') }}"
+    register: iso_image_stat
+
+  - name: Download ISO image if it does not exist locally
+    get_url:
+      url: "{{ build_url }}"
+      dest: "~/Downloads/"
+    when: not iso_image_stat.stat.exists
+
+  - name: Upload ISO image to HyperCore API
+    scale_computing.hypercore.iso:
+      name: "{{ hc_iso_name }}"
+      source: "/Users/davedemlow/Downloads/{{ hc_iso_name }}"
+      state: present
+    register: result
+
+  - name: Create and start vsns VM with disks, nics and boot devices set. Attach ISO onto the VM. Add cloud init data for ZTP
+    scale_computing.hypercore.vm:
+      vm_name: "{{ vmname }}"
+      description: virtual sns imaging from iso
+      state: present
+      tags:
+        - hc3nested
+        - SERIAL
+      memory: "{{ '16 GB' | human_to_bytes }}"
+      vcpu: 4
+      power_state: start
+      disks:
+        - type: ide_cdrom
+          disk_slot: 0
+          iso_name: "{{ hc_iso_name }}"
+        - type: virtio_disk
+          disk_slot: 0
+          size: "{{ '1 TB' | human_to_bytes }}"
+      nics:
+        - vlan: "{{ vlan }}"
+          type: virtio
+          mac: "{{ identifier }}"
+      boot_devices:
+        - type: virtio_disk
+          disk_slot: 0
+        - type: ide_cdrom
+          disk_slot: 0
+      # cloud_init:
+      #   meta_data: "{{ meta_data | to_json }}"
+      #   user_data: "{{ meta_data | to_json }}"
+      machine_type: BIOS
+      operating_system: os_other
+    register: vm_created
+
+#   watch until vm shuts down - then I know imaging is complete - then eject imaging iso and power back on
+
+  - name: Loop Wait for VM to be shut off after imaging
+    scale_computing.hypercore.vm_info:
+      vm_name: "{{ vmname }}"
+    register: vm_status
+    until: vm_status.records[0].power_state == "stopped"
+    retries: 60 # Number of attempts
+    delay: 30 # Delay in seconds between attempts
+    ignore_errors: yes 
+
+# this simetimes has fatal failure for some reason - so try twice
+
+  - name: Loop Wait for VM to be shut off after imaging
+    scale_computing.hypercore.vm_info:
+      vm_name: "{{ vmname }}"
+    register: vm_status
+    until: vm_status.records[0].power_state == "stopped"
+    retries: 60 # Number of attempts
+    delay: 60 # Delay in seconds between attempts
+    ignore_errors: yes 
+
+  - name: Eject imaging iso
+    scale_computing.hypercore.vm_disk:
+      vm_name: "{{ vmname }}"
+      items:
+        - disk_slot: 0
+          type: ide_cdrom
+      state: absent
+
+  - name: Re-start Vm desired configuration and state for "{{ vmname }}"
+    scale_computing.hypercore.vm_params:
+      vm_name: "{{ vmname }}"
+      power_state: start
+      description: restart after image - waiting for ztp
+
+# todo - here could ssh in with build key and delete /opt/scale/nucleusd/ and restart nucleusd 
+
+  - name: Wait for SSH to become ready on imaged node
+    ansible.builtin.wait_for:
+      host: "{{ lanip }}"
+      port: 22
+      state: started
+      timeout: 300
+
+  - name: Add host1 to inventory
+    add_host:
+      name: "{{ lanip }}"
+      groups: 'vsns'
+
+- name: tasks against vsns
+  hosts: vsns
+  tasks:
+    - name: Delete all files in the target directory on a specific host # needs build key and run agains test build
+      ansible.builtin.shell: "ls /opt/" # "rm -rf /opt/scale/nucleusd/certs/"
+      register: result
+      until: result.rc == 0
+      retries: 30  # Number of retries
+      delay: 60   # Delay in seconds between retries
+
+    # - name: Ensure /opt/scale/nucleusd/certs/ is absent
+    #   ansible.builtin.file:
+    #     path: /opt/scale/nucleusd/certs/
+    #     state: absent
+    #   delegate_to: "{{ lanip }}"
+    #   remote_user: root
+
+    - name: Delete all files in the target directory on a specific host #needs build key and run agains test build
+      ansible.builtin.shell: "/usr/bin/systemctl restart nucleusd"
+      register: result
+      until: result.rc == 0
+      retries: 30  # Number of retries
+      delay: 60   # Delay in seconds between retries
+
+#if this works and if I shutdown here - should be a good template to clone ... or could just clone here 
+
+- name: clone prepared vsns template
+  scale_computing.hypercore.vm_clone:
+    source_vm_name: "{{ vmname }}"
+    vm_name: "{{ vmname }}-template"
+
+# todo - need something to watch to know that cluster init is done ... login and get cluster info - then register to nucleus
+
+- name: Loop Get cluster info until login
+  scale_computing.hypercore.cluster_info:
+    cluster_instance:
+      host: "https://{{ lanip }}"
+      username: admin
+      password: admin
+  register: result
+  until: result is succeeded
+  retries: 30  # Number of retries
+  delay: 60   # Delay in seconds between retries
+  ignore_errors: yes 
+
+# this sometimes fails in a fatal way so for "cheat" will do this twice
+
+- name: Loop Get cluster info until login
+  scale_computing.hypercore.cluster_info:
+    cluster_instance:
+      host: "https://{{ lanip }}"
+      username: admin
+      password: admin
+  register: result
+  until: result is succeeded
+  retries: 30  # Number of retries
+  delay: 60   # Delay in seconds between retries
+
+#TODO - add additional delay here? or additional check that cluster is really ready - I did get 502 - tryign 60
+
+- name: Wait for 60 seconds
+  pause:
+    seconds: 60
+
+- name: set DNS configuration on "{{ vmname }}" 
+  scale_computing.hypercore.dns_config:
+    cluster_instance:
+      host: "https://{{ lanip }}"
+      username: admin
+      password: admin
+    search_domains:
+      - lab.local
+    dns_servers: 
+      - '8.8.8.8'
+#      - "{{ dns_servers }}"
+    state: set
+
+- name: Register nucleus key value
+  scale_computing.hypercore.api:
+    action: post
+    cluster_instance:
+      host: "https://{{ lanip }}"
+      username: admin
+      password: admin
+    endpoint: /rest/v1/NucleusKey
+    data:
+      uuid: "nucleuskey_uuid"
+      value: 6669d4075674d4f495a45d3c1ddea8319a1cd361585982bf49fc7a11aaaf26f7a232414026fd64573af7f5e92e1de6e8
+
+- name: Create ansible user account on vsns
+  scale_computing.hypercore.user:
+    cluster_instance:
+      host: "https://{{ lanip }}"
+      username: admin
+      password: admin
+    state: present
+    username: "{{ scale_user }}"
+    password: "{{ scale_pass }}"
+    full_name: ansible (complex - cluster config role)
+    session_limit: 0
+    roles:
+      - Admin
+  async: 60
+  poll: 0
+  changed_when: false #password specified always results in change - this blocks that
+
+- name: Re-start Vm desired configuration and state for "{{ vmname }}"
+  scale_computing.hypercore.vm_params:
+    vm_name: "{{ vmname }}"
+    power_state: start
+    description: vsns config complete 

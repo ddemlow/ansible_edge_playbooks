@@ -1,0 +1,224 @@
+---
+- name: Deploy and manage ansible pull runner VM using Debian 11 template via virtual disk upload # use -l filter to specify cluster vs. full inventory
+  hosts: all 
+  vars:  
+    vmname: "{{ site_name }}-pullrunner-jammy" # generally would use site_name pattern from inventory for fleet deploymenti
+    image_url: 
+      - "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+#      - "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64-disk-kvm.img"
+#      - "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
+#      - "https://cloud.debian.org/images/cloud/bullseye/latest/debian-11-generic-amd64.qcow2"
+    image_path: "/tmp/" #path to download file
+    _minute_: "*/05"
+    _hour_: 0
+    # User to run ansible-pull as from cron
+    cron_user: root #debian #note collections install as root
+    # File that ansible will use for logs
+    logfile: /tmp/ansible-pull.log
+    # Repository to check out -- YOU MUST CHANGE THIS repo must contain a local.yml file at top level
+    repo_url: https://github.com/ddemlow/edge-pull.git
+
+  connection: local
+  gather_facts: false
+  strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
+  environment:  # if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user }}"
+    SC_PASSWORD: "{{ scale_pass }}"
+    SC_TIMEOUT: 2000000
+    SC_AUTH_METHOD: local # or oidc 
+
+  tasks:
+    - name: Set image name as ansible fact (for single image)
+      ansible.builtin.set_fact:
+        image_name: "{{ item | split('/') | last }}"
+      loop: "{{ image_url }}"
+
+    - name: Download Virtual Disk(s) image from URL list
+      ansible.builtin.get_url:
+        url: "{{ item }}"
+        dest: "{{ image_path }}{{ image_name}}"
+        timeout: 10000
+        validate_certs: false
+        force: false
+      register: download
+      loop: "{{ image_url }}"
+
+    - name: Delete existing uploading-"{{ image_name }}" virtual disk # recovers from any previous failed upload 
+      scale_computing.hypercore.virtual_disk:
+        name: "uploading-{{ image_name }}"
+        state: absent
+      register: deleted
+      loop: "{{ image_url }}"      
+
+    - name: Upload Virtual Disk {{ item | split('/') | last }}" to HyperCore "{{ inventory_hostname }}"
+      scale_computing.hypercore.virtual_disk:
+        name: "{{ image_name }}"
+        source: "{{ image_path }}{{ image_name }}"
+        state: present
+      register: uploadResult
+      loop: "{{ image_url }}" 
+      ignore_errors: false
+
+  #TODO - could use a handler to force update virtual disk attached to template only if there is a new download or upload?
+
+    - name: Get info about template VM {{ image_name }}
+      scale_computing.hypercore.vm_info:
+        vm_name: "{{ image_name }}"
+      register: vm_info_result
+
+    - name: Create "{{ image_name }}" template vm if it does not already exist 
+      scale_computing.hypercore.vm:
+        vm_name: "{{ image_name }}"
+        description: "{{ image_url[0] }} template "
+        state: present
+        tags:
+          - template
+          - serial
+        memory: "{{ '1 GB' | human_to_bytes }}"
+        vcpu: 0 # makes template vm unbootable - must change cpu on cloned vm 
+        power_state: stop
+        disks:
+          - type: ide_cdrom
+            disk_slot: 0
+          # - type: nvram
+          #   disk_slot: 0
+        nics:
+          - vlan: 0
+            type: virtio
+        operating_system:  os_other
+        machine_type: BIOS
+        
+      when:  vm_info_result.records | length == 0   #only create VM if it doesn't already exist - else would delete existing template disk
+      register: template
+
+    - name: Attach uploaded virtual disk to  "{{ image_name }}" template  # this will attach latest image every time - should there be way to only attach if not exist?
+      scale_computing.hypercore.virtual_disk_attach:
+        name: "{{ image_name }}"
+        vm_name: "{{ image_name }}"
+        disk:
+          type: virtio_disk
+          disk_slot: 1
+          disable_snapshotting: false
+      register: diskattached
+
+    # - name: Disk desired configuration for "{{ image_name }}"   # seems resizing disk before first boot causes panic on debian11 bulseye unless serial port exists - add SERIAL to tag or description
+    #   scale_computing.hypercore.vm_disk:
+    #     vm_name: "{{ image_name }}"
+    #     items:
+    #       - disk_slot: 1
+    #         type: virtio_disk
+    #         size: "{{ '300 GB' | human_to_bytes }}" # 50GB | human to bytes results in 53.7GB VSD in Hypercore
+    #     state: present
+
+    - name: Set attached vsd device as bootable
+      scale_computing.hypercore.vm_boot_devices:
+        vm_name: "{{ image_name }}"
+        items:
+          - type: virtio_disk
+            disk_slot: 1
+        state: present
+      register: bootable
+
+# template complete! ... I guess here I don't need to create a template and clone it - TODO?
+
+    - name: Clone and configure vm "{{ vmname }}" from template "{{ image_name }}" # will only clone if "{{ vmname }}" does not already exist
+      scale_computing.hypercore.vm_clone:
+        vm_name: "{{ vmname }}"
+        source_vm_name: "{{ image_name }}"
+        cloud_init:
+          user_data: |
+            #cloud-config
+            password: "password"
+            chpasswd: { expire: False }
+            ssh_pwauth: True
+            ssh_authorized_keys: # Add your ssh public key for publickey authentication
+                - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDihWWhjoPj8KVLtdLDwNJQ71zi9An0iUFjefRWu2Eju ddemlow@scalecomputing.com
+                - MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxTiBEMhRymL0yqDAGF33DVwzfqp2CcyKJOOq5A862ocnOKRVhKoaU6ZfXnyLanqbylMKut5kuCRfq51nR7eBGpM6V0IUe5wlgvRB1HtXJHDBedclRaPWa8XQikk8AOscbmGufcs10TEFDH45L4tJd3ym+VD8mKp7PIge6yvhxaQaPfGx3MafEPm/ISpDLxbNueTIHBUt3WE7lfPXZ3owHIaEEht3L7hXvEqG801x/snT7Y1NJwfEpfD2EClDwoHHdln+UzJyxsbGZgmCgTVmXvnaz833lb2pEvmzfRZQybuXMtFB4/q8evc0CfIhqIcRaLzdImxgV
+            disable_root: false # allow ssh root login
+            packages: [python3-pip, docker, docker-compose, qemu-guest-agent, software-properties-common ]
+            ansible:
+              run_user: "{{ cron_user }}"
+              package_name: ansible
+              install_method: pip
+              pull:
+                url: "{{ repo_url }}"
+                playbook_name: local.yml
+            runcmd:
+              - add-apt-repository -y ppa:ansible/ansible
+              - apt-get update
+              - apt-get install -y ansible
+              - "ansible-galaxy collection install scale_computing.hypercore"
+              - "ansible-galaxy collection install community.docker"
+              - [ sh, -c, "test -f /usr/bin/git && cp /usr/bin/git /usr/sbin/git" ]
+              - (crontab -u {{ cron_user }} -l 2>/dev/null; echo "{{ _minute_ }} * * * * /usr/bin/ansible-pull -U '{{ repo_url }}' >> '{{ logfile }}' 2>&1") | crontab -u {{ cron_user }} -
+              - [ systemctl, restart, --no-block, qemu-guest-agent ]
+            bootcmd:
+              - [ sh, -c, 'sudo echo GRUB_CMDLINE_LINUX="nomodeset" >> /etc/default/grub' ]
+              - [ sh, -c, 'sudo echo GRUB_GFXPAYLOAD_LINUX="1024x768" >> /etc/default/grub' ]
+              - [ sh, -c, 'sudo echo GRUB_DISABLE_LINUX_UUID=true >> /etc/default/grub' ]
+              - [ sh, -c, 'sudo update-grub' ]
+            write_files:
+            - content: "{{ inventory_hostname }}"
+              path: /clusterip.txt
+            - content: "{{ repo_url }}"
+              path: /repourl.txt
+            - path: /etc/environment
+              content: |
+                SC_HOST="https://{{ inventory_hostname }}"
+                SC_USERNAME="{{ scale_user }}"
+                SC_PASSWORD="{{ scale_pass }}"
+                CLUSTERIP="{{ inventory_hostname }}"
+              owner: root:root
+              permissions: '0644'
+            - path: /etc/sudoers.d/preserve-env
+              content: |
+                Defaults env_keep += "SC_HOST"
+                Defaults env_keep += "SC_USERNAME"
+                Defaults env_keep += "SC_PASSWORD"
+              owner: root:root
+              permissions: '0440'
+          meta_data: |
+            dsmode: local
+            local-hostname: "{{ vmname }}"
+  
+  #TODO - cloud init everything ^ for runner - pass repository, etc.
+
+ 
+    - name: Disk desired configuration for "{{ vmname }}"   # seems resizing disk before first boot causes panic on debian11 bulseye unless serial port exists - add SERIAL to tag or description
+      scale_computing.hypercore.vm_disk:  
+        vm_name: "{{ vmname }}"
+        items:
+          - disk_slot: 1
+            type: virtio_disk
+            size: "{{ '300 GB' | human_to_bytes }}" # 50GB | human to bytes results in 53.7GB VSD in Hypercore
+        state: present
+
+    - name: Vm desired configuration and state for "{{ vmname }}"
+      scale_computing.hypercore.vm_params:
+        vm_name: "{{vmname}}"
+        memory: "{{ '4 GB' | human_to_bytes }}"
+        description: user=default - password=password media "{{ image_url }}" - SERIAL
+        tags:
+          - demo
+          - "{{ site_name }}"
+          - "ansible_group__pullrunner" # this will create tag used by hypercore inventory plugin when executing towards VM hosts
+          - "ansible_user__debian"
+          - "repo__{{ repo_url }}"
+          - SERIAL #debian will panic on first boot without this 
+        vcpu: 4
+        power_state: start
+        machine_type: BIOS
+
+    - name: Remove SERIAL tag after first start - Vm desired configuration and state for "{{ vmname }}"
+      scale_computing.hypercore.vm_params:
+        vm_name: "{{vmname}}"
+        tags:
+          - demo
+          - "{{ site_name }}"
+          - "ansible_group__pullrunner" # this will create tag used by hypercore inventory plugin when executing towards VM hosts
+          - "ansible_user__debian"
+          - "repo__{{ repo_url }}"
+        power_state: start        
+
+#TODO - could extend this to connect directly into runner for "push" updates - could also have runners check/config themselves via pull

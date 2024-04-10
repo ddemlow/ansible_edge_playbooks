@@ -9,7 +9,7 @@
     SC_PASSWORD: "{{ scale_pass }}"
     SC_TIMEOUT: 600
   vars: 
-    version_update_single_node_shutdown_wait_time: 300  #workaround for issue https://github.com/ScaleComputing/HyperCoreAnsibleCollection/issues/257
+    version_update_single_node_shutdown_wait_time: 30  #workaround for issue https://github.com/ScaleComputing/HyperCoreAnsibleCollection/issues/257
 
   tasks:
     - name: get all available updates 
