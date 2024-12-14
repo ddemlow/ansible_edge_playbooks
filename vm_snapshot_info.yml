@@ -7,8 +7,8 @@
   strategy: host_pinned
   environment:  # if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
     SC_HOST: "https://{{ inventory_hostname }}"
-    SC_USERNAME: "{{ scale_user }}"
-    SC_PASSWORD: "{{ scale_pass }}"
+    SC_USERNAME: "{{ scale_user | default('admin') }}"
+    SC_PASSWORD: "{{ scale_pass | default('admin') }}"
     SC_TIMEOUT: 600
 
   tasks:
@@ -28,6 +28,35 @@
     - name: debug
       debug: 
         var: snapshot
+
+    - name: Print table header
+      debug:
+        msg: "| VM Name                | VCPUs |"
+
+    - name: Print separator
+      debug:
+        msg: "|------------------------|-------|"
+
+    - name: Display VM names and their VCPUs
+      debug:
+        msg: "name: {{ item.vm_name }} vcpus: {{ item.vcpu  }}"
+      loop: "{{ vm.records }}"
+      loop_control:
+        label: "{{ item.vm_name }}"
+
+    - name: Print table header
+      debug:
+        msg: "{{ '%-30s | %5s' | format('VM Name', 'VCPUs') }}"
+
+
+    - name: Display VM names and their VCPUs in columns
+      debug:
+        msg: "{{ '%-30s | %5s' | format(item.vm_name, item.vcpu) }}"
+      loop: "{{ vm.records }}"
+      loop_control:
+        label: "{{ item.vm_name }}"
+
+
 
     # - name: Convert snapshot data to CSV format
     #   set_fact:

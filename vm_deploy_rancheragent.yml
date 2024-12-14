@@ -2,7 +2,7 @@
 - name: Simple vm deploy docker single node  # edit vmname variable - use -l filter to specify cluster vs. full inventory
   hosts: all
   vars:
-    - vmname: dockerdemo
+    - vmname: rke-
     - image_url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img #"https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
     - image_path: "/Users/davedemlow/tmp/" # ~/tmp/" #path to download file
     - url2template_image_url: "{{ image_url }}"
@@ -18,6 +18,7 @@
     SC_PASSWORD: "{{ scale_pass | default('admin') }}"
 #    SC_TIMEOUT: 15
   roles:
+    
     - url2template  #uses new collection role
 
   pre_tasks:
@@ -94,7 +95,7 @@
 
     - name: Clone and configure ad hoc "{{ vmname }} {{ran5}}"
       scale_computing.hypercore.vm_clone:
-        vm_name: "{{ vmname }}"
+        vm_name: "{{ vmname }}{{ ran5 }}"
         source_vm_name: "{{ url2template_vm_name }}"
         tags:
           - appdeploy
@@ -108,10 +109,9 @@
               - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDihWWhjoPj8KVLtdLDwNJQ71zi9An0iUFjefRWu2Eju ddemlow@scalecomputing.com
             disable_root: false
             ssh_import_id:  gh:ddemlow
-            apt: {sources: {docker.list: {source: 'deb [arch=amd64] https://download.docker.com/linux/ubuntu $RELEASE stable', keyid: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88}}}
             package_update: true
             package_upgrade: false
-            packages: [qemu-guest-agent, docker-ce, docker-ce-cli, docker-compose ]
+            packages: [qemu-guest-agent, snapd ]
             bootcmd:
               - [ sh, -c, 'sudo echo GRUB_CMDLINE_LINUX="nomodeset" >> /etc/default/grub' ]
               - [ sh, -c, 'sudo echo GRUB_GFXPAYLOAD_LINUX="1024x768" >> /etc/default/grub' ]
@@ -119,47 +119,10 @@
               - [ sh, -c, 'sudo update-grub' ]
             runcmd:
               - [ systemctl, restart, --no-block, qemu-guest-agent ]
-              - sh -c '/usr/sbin/usermod -aG docker ubuntu'
-              - sh -c 'cd /home/ubuntu/ && /usr/bin/docker-compose up -d'              
+              - "curl --insecure -fL https://rancher.40.71.177.190.sslip.io/system-agent-install.sh | sudo  sh -s - --server https://rancher.40.71.177.190.sslip.io --label 'cattle.io/os=linux' --token 4hkjvbqc7dkt8f6pqxxwpvscgsmr4jbrlh4gx42hx2lhgd9c6pxmq8 --ca-checksum 201d953e9eaf37618c62fe24d8264b4a7a00b8172348f42b43ebad430867009e --etcd --controlplane --worker" 
               - [ systemctl, restart, --no-block, qemu-guest-agent ]
+              - snap install kubectl --classic
             write_files:
-            # configure docker daemon to be accessible remotely via TCP on socket 237
-            - content: |
-                version: '3.1'
-
-                services:
-                  wordpress:
-                    image: wordpress:latest
-                    restart: always
-                    ports:
-                      - '80:80'
-                    environment:
-                      WORDPRESS_DB_HOST: db
-                      WORDPRESS_DB_USER: wordpress
-                      WORDPRESS_DB_PASSWORD: wordpress
-                      WORDPRESS_DB_NAME: wordpress
-                      WORDPRESS_TITLE: "Scale Demo Wordpress Site"
-                      WORDPRESS_ADMIN_USER: "admin"
-                      WORDPRESS_ADMIN_PASSWORD: "password"
-                      WORDPRESS_ADMIN_EMAIL: "admin@example.com"
-                    volumes:
-                      - wordpress_data:/var/www/html
-
-                  db:
-                    image: mysql:5.7
-                    restart: always
-                    environment:
-                      MYSQL_ROOT_PASSWORD: somewordpress
-                      MYSQL_DATABASE: wordpress
-                      MYSQL_USER: wordpress
-                      MYSQL_PASSWORD: wordpress
-                    volumes:
-                      - db_data:/var/lib/mysql
-
-                volumes:
-                  wordpress_data:
-                  db_data:
-              path: /home/ubuntu/docker-compose.yaml
             - path: /etc/systemd/system/getty@tty1.service.d/override.conf
               content: |
                 [Service]
@@ -176,11 +139,11 @@
 
           meta_data: |
             dsmode: local
-            local-hostname: "{{ vmname }}
+            local-hostname: "{{ vmname }}{{ ran5 }}"
 
     - name: Disk desired configuration for "{{ vmname }}
       scale_computing.hypercore.vm_disk:
-        vm_name: "{{ vmname }}"
+        vm_name: "{{ vmname }}{{ ran5 }}"
         items:
           - disk_slot: 1
             type: virtio_disk
@@ -189,8 +152,8 @@
 
     - name: Vm desired configuration and state for "{{ vmname }}"
       scale_computing.hypercore.vm_params:
-        vm_name: "{{ vmname }}"
-        memory: "{{ '5 GB' | human_to_bytes }}"
+        vm_name: "{{ vmname }}{{ ran5 }}"
+        memory: "{{ '9 GB' | human_to_bytes }}"
         description:
         tags:
           - appdeploy

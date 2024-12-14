@@ -1,0 +1,29 @@
+---
+- name: delete orphaned acronis vsds #edit vmname variable - use -l filter to specify cluster vs. full inventory
+  hosts: edge
+  vars:
+    - vmname: PM-SPLUNK
+  connection: local
+  gather_facts: false
+  strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
+  environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user | default('admin') }}"
+    SC_PASSWORD: "{{ scale_pass | default('admin') }}"
+    SC_TIMEOUT: 60
+
+  tasks:
+    - name: List all snapshots
+      scale_computing.hypercore.vm_snapshot_info:
+        vm_name: "{{ vmname }}"
+      register: snapshot_results
+      
+    - name: Loop through list of snapshots and delete all older than the 'use_date'
+      scale_computing.hypercore.vm_snapshot:
+        vm_name: "{{ item.vm.name }}"
+        uuid: "{{ item.snapshot_uuid }}"
+        state: absent
+      loop: "{{ snapshot_results.records }}"
+      ignore_errors: true
+
+      #TODO - could evaulate name for Acronis utility snapshot

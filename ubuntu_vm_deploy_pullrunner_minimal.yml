@@ -2,9 +2,9 @@
 - name: Deploy and manage ansible pull runner VM using Debian 11 template via virtual disk upload # use -l filter to specify cluster vs. full inventory
   hosts: all 
   vars:  
-    vmname: "{{ site_name }}-pullrunner-jammy" # generally would use site_name pattern from inventory for fleet deploymenti
+    vmname: "{{ site_name }}-ansible-minimal" # generally would use site_name pattern from inventory for fleet deploymenti
     image_url: 
-      - "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+      - "https://cloud-images.ubuntu.com/minimal/releases/jammy/release-20220420/ubuntu-22.04-minimal-cloudimg-amd64.img"
 #      - "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64-disk-kvm.img"
 #      - "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
 #      - "https://cloud.debian.org/images/cloud/bullseye/latest/debian-11-generic-amd64.qcow2"
@@ -81,13 +81,15 @@
         disks:
           - type: ide_cdrom
             disk_slot: 0
-          # - type: nvram
-          #   disk_slot: 0
+          - type: nvram
+            disk_slot: 0
+          - type: vtpm
+            disk_slot: 0
         nics:
           - vlan: 0
             type: virtio
         operating_system:  os_other
-        machine_type: BIOS
+        machine_type: "UEFI"
         
       when:  vm_info_result.records | length == 0   #only create VM if it doesn't already exist - else would delete existing template disk
       register: template

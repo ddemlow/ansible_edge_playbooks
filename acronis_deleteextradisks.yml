@@ -1,0 +1,49 @@
+---
+- name: delete orphaned acronis vsds #edit vmname variable - use -l filter to specify cluster vs. full inventory
+  hosts: edge
+  vars:
+    - vmname: BackupApplianceca0d078c7ce31d2f9f024b689ef202c0d
+  connection: local
+  gather_facts: false
+  strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
+  environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user | default('admin') }}"
+    SC_PASSWORD: "{{ scale_pass | default('admin') }}"
+    SC_TIMEOUT: 60
+
+  tasks:
+    - name: list vm details  "{{ vmname }}"
+      scale_computing.hypercore.vm_info:
+        cluster_instance:
+          host: "https://{{inventory_hostname }}"
+          username: "{{scale_user}}"
+          password: "{{scale_pass}}"
+        vm_name: "{{ vmname }}"
+ 
+#     - name: Disk desired configuration for "{{ vmname }}"
+#       scale_computing.hypercore.vm_disk:
+#         cluster_instance:
+#           host: "https://{{inventory_hostname }}"
+#           username: "{{scale_user}}"
+#           password: "{{scale_pass}}"
+#         vm_name: "{{ vmname }}"
+#         items:
+#           - disk_slot: 0
+#             type: virtio_disk
+#         state: present
+
+    - name: Ensure disks 1-30 are absent for "{{ vmname }}"
+      scale_computing.hypercore.vm_disk:
+        cluster_instance:
+          host: "https://{{ inventory_hostname }}"
+          username: "{{ scale_user }}"
+          password: "{{ scale_pass }}"
+        vm_name: "{{ vmname }}"
+        items:
+          - disk_slot: "{{ item }}"
+            type: virtio_disk
+        state: absent
+      loop: "{{ range(1, 30) | list }}"  # Loops from disk_slot 1 to 20
+
+ 

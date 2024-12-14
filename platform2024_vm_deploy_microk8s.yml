@@ -1,32 +1,37 @@
 ---
 - name: Simple vm deploy microk8s single node  #edit vmname variable - use -l filter to specify cluster vs. full inventory
-  hosts: edge
+  hosts: all
   vars:
-    - vmname: microk8s-
-    - image_url:
-      - "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
-    - image_path: "/Users/davedemlow/tmp/" #~/tmp/" #path to download file
+    - vmname: microk8s
+    - image_url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img #"https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+    - image_path: "/Users/davedemlow/tmp/" # ~/tmp/" #path to download file
+    - url2template_image_url: "{{ image_url }}"
+    - url2template_machine_type: vTPM+UEFI
+    - url2template_operating_system: os_other
+    - url2template_vm_name: "{{ vm_name | default(image_url | split('/') | last) }}"
   connection: local
   gather_facts: false
+  any_errors_fatal: true
   strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
   environment:  # if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
     SC_HOST: "https://{{ inventory_hostname }}"
-    SC_USERNAME: "{{ scale_user }}"
-    SC_PASSWORD: "{{ scale_pass }}"
+    SC_USERNAME: "{{ scale_user | default('admin') }}"
+    SC_PASSWORD: "{{ scale_pass | default('admin') }}"
   roles:
-    - url2template
+    - url2template  #uses new collection role
+
 
   tasks:
     - name: generate 5 digit random character password using lower case ans set as variable named ran5
       ansible.builtin.set_fact:
         ran5: "{{ lookup('password', '/dev/null chars=ascii_lowercase,digits length=5') }}" 
 
-    - name: Clone and configure ad hoc "{{ vmname }} {{ran5}}"
+    - name: Clone and configure ad hoc "{{ vmname }}"
       scale_computing.hypercore.vm_clone:
-        vm_name: "{{ vmname }}{{ ran5 }}"
-        source_vm_name: "{{ image_name }}"
+        vm_name: "{{ vmname }}"
+        source_vm_name: "{{ url2template_vm_name }}"
         tags:
-          - platform2024
+          - appdeploy
         cloud_init:
           user_data: |
             #cloud-config
@@ -39,9 +44,6 @@
             ssh_pwauth: True
             ssh_import_id:  gh:ddemlow
             packages: [snapd, qemu-guest-agent]
-            snap:
-              commands:
-                00: snap install microk8s
             bootcmd:
               - [ sh, -c, 'sudo echo GRUB_CMDLINE_LINUX="nomodeset" >> /etc/default/grub' ]
               - [ sh, -c, 'sudo echo GRUB_GFXPAYLOAD_LINUX="1024x768" >> /etc/default/grub' ]
@@ -55,7 +57,7 @@
               - chown -f -R ubuntu ~/.kube
 
               # Enable MicroK8s addons
-              - microk8s enable dns dashboard storage host-access
+              - microk8s enable dns dashboard hostpath-storage host-access
 
               # Wait for MicroK8s to become available
               - microk8s status --wait-ready
@@ -71,39 +73,36 @@
               #install portainer agent and register
               - PORTAINER_EDGE_ID=$(hostname)
               - 'curl https://downloads.portainer.io/ee2-19/portainer-edge-agent-setup.sh | bash -s -- "$PORTAINER_EDGE_ID" "aHR0cHM6Ly8yMC44OC4yMi4yMjc6OTQ0M3wyMC44OC4yMi4yMjc6ODAwMHwydXByOUtuYTd6ZHBNWExNMm9meDNubHZEOHh2THpLVjN5WnlXM1lsWFdvPXww" "1" "" "EDGE_ASYNC=1,PORTAINER_GROUP=3"'
-              - echo "cloud-init complete" > /dev/tty
             write_files:
             - content: "{{ inventory_hostname }}"
               path: /clusterip.txt
+            - path: /etc/systemd/system/getty@tty1.service.d/override.conf
+              content: |
+                [Service]
+                # Override getty@.service for tty1 to enable autologin
+                ExecStart=
+                ExecStart=-/sbin/agetty --autologin ubuntu --noclear %I $TERM
+              permissions: '0644'
           meta_data: |
             dsmode: local
-            local-hostname: "{{ vmname }}{{ ran5 }}"
+            local-hostname: "{{ vmname }}"
 
-    - name: Disk desired configuration for "{{ vmname }}{{ran5}}"
+    - name: Disk desired configuration for "{{ vmname }}"
       scale_computing.hypercore.vm_disk:
-        cluster_instance:
-          host: "https://{{inventory_hostname }}"
-          username: "{{scale_user}}"
-          password: "{{scale_pass}}"
-        vm_name: "{{ vmname }}{{ran5}}"
+        vm_name: "{{ vmname }}"
         items:
-          - disk_slot: 0
+          - disk_slot: 1
             type: virtio_disk
             size: "{{ '300 GB' | human_to_bytes }}" # 50GB | human to bytes results in 53.7GB VSD in Hypercore
         state: present
 
-    - name: Vm desired configuration and state for "{{ vmname }}{{ran5}}"
+    - name: Vm desired configuration and state for "{{ vmname }}"
       scale_computing.hypercore.vm_params:
-        cluster_instance:
-          host: "https://{{inventory_hostname }}"
-          username: "{{scale_user}}"
-          password: "{{scale_pass}}"
-        vm_name: "{{vmname}}{{ran5}}"
+        vm_name: "{{vmname}}"
         memory: "{{ '4 GB' | human_to_bytes }}"
         description:
         tags:
-          - platform2024
-          - "{{ site_name }}"
+          - appdeploy
           - ansible_group__microk8s # this will create tag used by hypercore inventory plugin when executing towards VM hosts
           - SERIAL
         vcpu: 8

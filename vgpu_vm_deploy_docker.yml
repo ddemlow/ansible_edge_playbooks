@@ -1,11 +1,14 @@
 ---
-- name: Simple vm deploy docker single node  #edit vmname variable - use -l filter to specify cluster vs. full inventory
-  hosts: edge
+- name: Simple vm deploy docker single node  # edit vmname variable - use -l filter to specify cluster vs. full inventory
+  hosts: all
   vars:
-    - vmname: docker-  #random 5 characters will be appended
-    - image_url:
-      - "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
-    - image_path: "/Users/davedemlow/tmp/" #~/tmp/" #path to download file
+    - vmname: docker-
+    - image_url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img #"https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+    - image_path: "/Users/davedemlow/tmp/" # ~/tmp/" #path to download file
+    - url2template_image_url: "{{ image_url }}"
+    - url2template_machine_type: vTPM+UEFI
+    - url2template_operating_system: os_other
+    - url2template_vm_name: "{{ vm_name | default(image_url | split('/') | last) }}"
   connection: local
   gather_facts: false
   strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
@@ -17,16 +20,16 @@
     - url2template
 
   tasks:
-    - name: generate 5 digit random character password using lower case ans set as variable named ran5
+    - name: Generate 5 digit random character password using lower case ans set as variable named ran5
       ansible.builtin.set_fact:
-        ran5: "{{ lookup('password', '/dev/null chars=ascii_lowercase,digits length=5') }}" 
+        ran5: "{{ lookup('password', '/dev/null chars=ascii_lowercase,digits length=5') }}"
 
     - name: Clone and configure ad hoc "{{ vmname }} {{ran5}}"
       scale_computing.hypercore.vm_clone:
         vm_name: "{{ vmname }}{{ ran5 }}"
-        source_vm_name: "{{ image_name }}"
+        source_vm_name: "{{ url2template_vm_name }}"
         tags:
-          - platform2024
+          - temp
         cloud_init:
           user_data: |
             #cloud-config
@@ -35,76 +38,60 @@
             ssh_pwauth: True
             ssh_authorized_keys: # Add your ssh public key for publickey authentication
               - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDihWWhjoPj8KVLtdLDwNJQ71zi9An0iUFjefRWu2Eju ddemlow@scalecomputing.com
-            disable_root: false # allow ssh root login
+            disable_root: false
             ssh_import_id:  gh:ddemlow
             apt: {sources: {docker.list: {source: 'deb [arch=amd64] https://download.docker.com/linux/ubuntu $RELEASE stable', keyid: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88}}}
             package_update: true
             package_upgrade: false
             packages: [qemu-guest-agent, docker-ce, docker-ce-cli, docker-compose ]
-
             bootcmd:
               - [ sh, -c, 'sudo echo GRUB_CMDLINE_LINUX="nomodeset" >> /etc/default/grub' ]
               - [ sh, -c, 'sudo echo GRUB_GFXPAYLOAD_LINUX="1024x768" >> /etc/default/grub' ]
               - [ sh, -c, 'sudo echo GRUB_DISABLE_LINUX_UUID=true >> /etc/default/grub' ]
               - [ sh, -c, 'sudo update-grub' ]
-
             runcmd:
+              - [ systemctl, restart, --no-block, qemu-guest-agent ]
               - sh -c '/usr/sbin/usermod -aG docker ubuntu'
-              - sh -c 'systemctl, restart, --no-block, qemu-guest-agent'
-              - sh -c 'cd /home/ubuntu/elk && /usr/bin/docker-compose up -d'
-
+              - sh -c 'cd /home/ubuntu/ && /usr/bin/docker-compose up -d'              
+              - [ systemctl, restart, --no-block, qemu-guest-agent ]
             write_files:
-            - path: /home/ubuntu/elk/docker-compose.yaml
-              content: |
-                services:
-                  elasticsearch:
-                    image: elasticsearch:7.16.1
-                    container_name: es
-                    environment:
-                      discovery.type: single-node
-                      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
-                    ports:
-                      - "9200:9200"
-                      - "9300:9300"
-                    healthcheck:
-                      test: ["CMD-SHELL", "curl --silent --fail support-tunnel-legacy:9200/_cluster/health || exit 1"]
-                      interval: 10s
-                      timeout: 10s
-                      retries: 3
-                    networks:
-                      - elastic
-                  logstash:
-                    image: logstash:7.16.1
-                    container_name: log
-                    environment:
-                      discovery.seed_hosts: logstash
-                      LS_JAVA_OPTS: "-Xms512m -Xmx512m"
-                    volumes:
-                      - ./logstash/pipeline/logstash-nginx.config:/usr/share/logstash/pipeline/logstash-nginx.config
-                      - ./logstash/nginx.log:/home/nginx.log
-                    ports:
-                      - "5000:5000/tcp"
-                      - "5000:5000/udp"
-                      - "5044:5044"
-                      - "9600:9600"
-                    depends_on:
-                      - elasticsearch
-                    networks:
-                      - elastic
-                    command: logstash -f /usr/share/logstash/pipeline/logstash-nginx.config
-                  kibana:
-                    image: kibana:7.16.1
-                    container_name: kib
-                    ports:
-                      - "5601:5601"
-                    depends_on:
-                      - elasticsearch
-                    networks:
-                      - elastic
-                networks:
-                  elastic:
-                    driver: bridge
+            # configure docker daemon to be accessible remotely via TCP on socket 237
+            - content: |
+                version: '3.1'
 
+                services:
+                  wordpress:
+                    image: wordpress:latest
+                    restart: always
+                    ports:
+                      - '80:80'
+                    environment:
+                      WORDPRESS_DB_HOST: db
+                      WORDPRESS_DB_USER: wordpress
+                      WORDPRESS_DB_PASSWORD: wordpress
+                      WORDPRESS_DB_NAME: wordpress
+                      WORDPRESS_TITLE: "Scale Demo Wordpress Site"
+                      WORDPRESS_ADMIN_USER: "admin"
+                      WORDPRESS_ADMIN_PASSWORD: "password"
+                      WORDPRESS_ADMIN_EMAIL: "admin@example.com"
+                    volumes:
+                      - wordpress_data:/var/www/html
+
+                  db:
+                    image: mysql:5.7
+                    restart: always
+                    environment:
+                      MYSQL_ROOT_PASSWORD: somewordpress
+                      MYSQL_DATABASE: wordpress
+                      MYSQL_USER: wordpress
+                      MYSQL_PASSWORD: wordpress
+                    volumes:
+                      - db_data:/var/lib/mysql
+
+                volumes:
+                  wordpress_data:
+                  db_data:
+              path: /home/ubuntu/docker-compose.yaml
             - path: /etc/systemd/system/getty@tty1.service.d/override.conf
               content: |
                 [Service]
@@ -112,7 +99,6 @@
                 ExecStart=
                 ExecStart=-/sbin/agetty --autologin ubuntu --noclear %I $TERM
               permissions: '0644'
-
             final_message: |
               cloud-init has finished
               version: $version
@@ -128,7 +114,7 @@
       scale_computing.hypercore.vm_disk:
         vm_name: "{{ vmname }}{{ran5}}"
         items:
-          - disk_slot: 0
+          - disk_slot: 1
             type: virtio_disk
             size: "{{ '300 GB' | human_to_bytes }}" # 50GB | human to bytes results in 53.7GB VSD in Hypercore
         state: present
@@ -136,13 +122,11 @@
     - name: Vm desired configuration and state for "{{ vmname }}{{ran5}}"
       scale_computing.hypercore.vm_params:
         vm_name: "{{vmname}}{{ran5}}"
-        memory: "{{ '4 GB' | human_to_bytes }}"
+        memory: "{{ '32 GB' | human_to_bytes }}"
         description:
         tags:
-          - platform2024
-          - uiport___5601
-          - "{{ site_name }}"
-          - ansible_group__docker # this will create tag used by hypercore inventory plugin when executing towards VM hosts
+          - SCALEGPUL424Q
+          - ddemlow # this will create tag used by hypercore inventory plugin when executing towards VM hosts
           - SERIAL
-        vcpu: 8
+        vcpu: 32
         power_state: start

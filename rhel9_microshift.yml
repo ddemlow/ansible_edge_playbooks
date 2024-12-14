@@ -1,0 +1,139 @@
+---
+- name: rhel deploy   # edit vmname variable - use -l filter to specify cluster vs. full inventory
+  hosts: all
+  vars:
+    - vmname: rh9-
+    # - image_url: /Users/davedemlow/Downloads/composer-api-81fd0385-aa6e-4399-9412-72028278321d-disk.qcow2 #https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img #"https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+    # - image_path: "/Users/davedemlow/tmp/" # ~/tmp/" #path to download file
+    # - url2template_image_url: "{{ image_url }}"
+    # - url2template_machine_type: vTPM+UEFI
+    # - url2template_operating_system: os_other
+    # - url2template_vm_name: "{{ vm_name | default(image_url | split('/') | last) }}"
+    - vm_group: rh9micro-
+    - source_vm_name: rhel9-template
+ #   - vm_name: "{{ vm_group }}-server-0"
+    - description: created from {{ source_vm_name }}
+    - vcpu: 8
+    - memory: "{{ '32 GB' | human_to_bytes }}"
+    - disk_size: "{{ '300 GB' | human_to_bytes }}"
+      #
+      # do we have ens1 or enp1s0 or something else
+    - vm_network_iface: enp3s0
+    - # DHCP IP address from DHCP
+      vm_network_mode: dhcp
+      # vm_network_mode: "static"
+      # Static IP address
+      # vm_network_ip_address: 172.31.6.20
+      # vm_network_netmask: 255.255.255.0
+      # vm_network_gateway: 172.31.6.1
+      # vm_network_dns_nameservers: 8.8.8.8
+    - vm_ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDihWWhjoPj8KVLtdLDwNJQ71zi9An0iUFjefRWu2Eju ddemlow@scalecomputing.com
+    # Import SSH key from github.com
+    - vm_ssh_import_id: "gh:ddemlow"
+    # vm_ssh_import_id: "gh:your_username"
+
+  connection: local
+  gather_facts: false
+  strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
+  environment:  # if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user | default('admin') }}"
+    SC_PASSWORD: "{{ scale_pass | default('admin') }}"
+
+  tasks:
+    - name: Generate 5 digit random character password using lower case ans set as variable named ran5
+      ansible.builtin.set_fact:
+        ran5: "{{ lookup('password', '/dev/null chars=ascii_lowercase,digits length=5') }}"
+
+
+    # - name: Create VM from template
+    #   ansible.builtin.include_role:
+    #     name: scale_computing.hypercore.template2vm
+    #   vars:
+    #     template2vm_source_vm_name: "{{ source_vm_name }}"
+    #     template2vm_vm_name: "{{ vm_name }}"
+    #     template2vm_description: test server, created from {{ source_vm_name }}
+    #     template2vm_vm_tags:
+    #       - "{{ vm_group }}"
+    #       - ansible_group__{{ vm_group }}
+    #       # If static IP address is used, optionally uncomment this to set ansible_host
+    #       # - ansible_host__{{ vm_network_ip_address }}
+    #     template2vm_vcpu: "{{ vcpu }}"
+    #     template2vm_memory: "{{ memory }}"
+    #     template2vm_disk_size: "{{ disk_size }}"
+    #     template2vm_nics:
+    #       - type: virtio
+    #       - type: INTEL_E1000
+    #         vlan: 10
+    #     template2vm_power_state: start
+    #     # cloud-init
+    #     template2vm_user_data: "{{ lookup('template', 'user-data.ubuntu-22.04.yml.j2') }}"
+    #     template2vm_meta_data: "{{ lookup('template', 'meta-data.ubuntu-22.04.yml.j2') }}"
+
+
+
+    - name: Clone and configure ad hoc "{{ vmname }}{{ ran5 }}"
+      scale_computing.hypercore.vm_clone:
+        vm_name: "{{ vmname }}{{ ran5 }}"
+        source_vm_name: "{{ source_vm_name }}"
+        tags:
+          - microshift
+        cloud_init:
+          user_data: |
+            #cloud-config
+            password: "password"
+            chpasswd: { expire: False }
+            ssh_pwauth: True
+            ssh_authorized_keys: # Add your ssh public key for publickey authentication
+              - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDihWWhjoPj8KVLtdLDwNJQ71zi9An0iUFjefRWu2Eju ddemlow@scalecomputing.com
+            disable_root: false
+            ssh_import_id:  gh:ddemlow
+            package_update: true
+            package_upgrade: false
+            packages: [qemu-guest-agent ]
+            bootcmd:
+              - [ sh, -c, 'sudo echo GRUB_CMDLINE_LINUX="nomodeset" >> /etc/default/grub' ]
+              - [ sh, -c, 'sudo echo GRUB_GFXPAYLOAD_LINUX="1024x768" >> /etc/default/grub' ]
+              - [ sh, -c, 'sudo echo GRUB_DISABLE_LINUX_UUID=true >> /etc/default/grub' ]
+              - [ sh, -c, 'sudo update-grub' ]
+            runcmd:
+              - [ systemctl, restart, --no-block, qemu-guest-agent ]
+              - [ systemctl, restart, --no-block, qemu-guest-agent ]
+            write_files:
+            - path: /etc/systemd/system/getty@tty1.service.d/override.conf
+              content: |
+                [Service]
+                # Override getty@.service for tty1 to enable autologin
+                ExecStart=
+                ExecStart=-/sbin/agetty --autologin root --noclear %I $TERM
+              permissions: '0644'
+            final_message: |
+              cloud-init has finished
+              version: $version
+              timestamp: $timestamp
+              datasource: $datasource
+              uptime: $uptime
+          meta_data: |
+            dsmode: local
+            local-hostname: "{{ vmname }}{{ran5}}"
+
+    - name: Disk desired configuration for "{{ vmname }}{{ran5}}"
+      scale_computing.hypercore.vm_disk:
+        vm_name: "{{ vmname }}{{ran5}}"
+        items:
+          - disk_slot: 1
+            type: virtio_disk
+            size: "{{ disk_size }}"    #"{{ '300 GB' | human_to_bytes }}" # 50GB | human to bytes results in 53.7GB VSD in Hypercore
+        state: present
+
+    - name: Vm desired configuration and state for "{{ vmname }}{{ran5}}"
+      scale_computing.hypercore.vm_params:
+        vm_name: "{{vmname}}{{ran5}}"
+        memory: "{{ '32 GB' | human_to_bytes }}"
+        description:
+        tags:
+          - ddemlow # this will create tag used by hypercore inventory plugin when executing towards VM hosts
+          - SERIAL
+        vcpu: 32
+        power_state: start

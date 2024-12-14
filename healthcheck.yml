@@ -1,18 +1,19 @@
 ---
 - name: HyperCore Best Practices healthcheck
-  hosts: edge # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
+  hosts: all # edge # use ansible-playbook -l group to limit application to specific groups - has tab completion for -l !
   connection: ansible.builtin.local
   gather_facts: false
   #ignore_errors: yes # chesks will log failure if out of compliance
   #strategy: host_pinned # use default - want these tasks to all report in block together
   environment:  #if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
     SC_HOST: "https://{{ inventory_hostname }}"
-    SC_USERNAME: "{{ scale_user }}"
-    SC_PASSWORD: "{{ scale_pass }}"
+    SC_USERNAME: "{{ scale_user | default('admin') }}"
+    SC_PASSWORD: "{{ scale_pass | default('admin') }}"
     
   roles:
     - vm_cleanup # cleans up list of formerly used VMs
     - iso_cleanup #removes isos defined in role
+    - cleanupimages
     - hypercore_version # checks and corrects hypercore version vs. desired
     - check-ide # check for vms with ide disks
 

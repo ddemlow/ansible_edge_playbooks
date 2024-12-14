@@ -1,0 +1,37 @@
+---
+- name: Delete all Acronis utility snapshots across all VMs in the cluster
+  hosts: edge
+  connection: local
+  gather_facts: false
+  strategy: host_pinned
+  environment:
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user | default('admin') }}"
+    SC_PASSWORD: "{{ scale_pass | default('admin') }}"
+    SC_TIMEOUT: 60
+
+  tasks:
+    - name: List all VMs in the cluster
+      scale_computing.hypercore.vm_info:
+      register: vm_list
+
+    - name: Loop through all VMs and get their snapshots
+      loop: "{{ vm_list.records.vm_name }}"  # Adjust 'records' based on debug output
+      # loop_control:
+      #   label: "{{ item.vm_name }}"
+      tasks:
+        - name: List snapshots for VM
+          scale_computing.hypercore.vm_snapshot_info:
+            vm_name: "{{ item }}"
+          register: snapshot_results
+
+        - name: Delete snapshots named "Acronis utility snapshot" for the current VM
+          scale_computing.hypercore.vm_snapshot:
+            vm_name: "{{ item.name }}"
+            uuid: "{{ snapshot_item.snapshot_uuid }}"
+            state: absent
+          loop: "{{ snapshot_results.records }}"
+          when: snapshot_item.snapshot_name == 'Acronis utility snapshot'
+          loop_control:
+            label: "{{ item.name }}: {{ snapshot_item.snapshot_name }}"
+          ignore_errors: true

@@ -1,0 +1,110 @@
+---
+- name: Simple vm deploy alma linux 
+  hosts: all
+  vars:
+    - vmname: "abm{{ index }}"
+    - image_url: https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-9.5-20241120.x86_64.qcow2 #https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-9.4-20240507.x86_64.qcow2
+    - image_path: "/Users/davedemlow/tmp/" # ~/tmp/" #path to download file
+    - url2template_image_url: "{{ image_url }}"
+    - url2template_machine_type: vTPM+UEFI
+    - url2template_operating_system: os_other
+    - url2template_vm_name: "{{ vm_name | default(image_url | split('/') | last) }}"
+    - index: "40"
+    - vlan: "164"
+    - identifier: "7c:4c:dd:00:00:{{ index }}"
+    - lanip: "10.6.42.{{index}}"
+    - backplaneip: "192.6.42.{{ index }}"
+    - lanNetmask: 255.255.252.0
+    - lanGateway: 10.6.43.254
+  connection: local
+  gather_facts: false
+  strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
+  environment:  # if set here - hypercore modules will automatically use this for each remote cluster - avoiding need to specify cluster_instance for each test
+    SC_HOST: "https://{{ inventory_hostname }}"
+    SC_USERNAME: "{{ scale_user | default('admin') }}"
+    SC_PASSWORD: "{{ scale_pass | default('admin') }}"
+    SC_TIMEOUT: 15
+  roles:
+#    - cleanupimages
+    - url2template  #uses new collection role
+
+  pre_tasks:
+
+  tasks:
+    - name: Generate 5 digit random character password using lower case ans set as variable named ran5
+      ansible.builtin.set_fact:
+        ran5: "{{ lookup('password', '/dev/null chars=ascii_lowercase,digits length=5') }}"
+
+    - name: Clone and configure ad hoc "{{ vmname }} {{ran5}}"
+      scale_computing.hypercore.vm_clone:
+        vm_name: "{{ vmname }}"
+        source_vm_name: "{{ url2template_vm_name }}"
+        tags:
+          - ovirt
+        cloud_init:
+          user_data: |
+            #cloud-config
+            password: "password"
+            chpasswd: { expire: False }
+            ssh_pwauth: True
+            ssh_authorized_keys: # Add your ssh public key for publickey authentication
+              - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDihWWhjoPj8KVLtdLDwNJQ71zi9An0iUFjefRWu2Eju ddemlow@scalecomputing.com
+            disable_root: false
+            ssh_import_id:  gh:ddemlow
+            package_update: true
+            package_upgrade: true
+            packages: [qemu-guest-agent, firewalld, centos-release-ovirt45, ovirt-hosted-engine-setup  ]
+            bootcmd:
+              - [ sh, -c, 'sudo echo GRUB_CMDLINE_LINUX="nomodeset" >> /etc/default/grub' ]
+              - [ sh, -c, 'sudo echo GRUB_GFXPAYLOAD_LINUX="1024x768" >> /etc/default/grub' ]
+              - [ sh, -c, 'sudo echo GRUB_DISABLE_LINUX_UUID=true >> /etc/default/grub' ]
+              - [ sh, -c, 'sudo update-grub' ]
+            runcmd:
+              - [ systemctl, restart, --no-block, qemu-guest-agent ]
+              - [ systemctl, restart, --no-block, qemu-guest-agent ]
+            write_files:
+            - path: /etc/systemd/system/getty@tty1.service.d/override.conf
+              content: |
+                [Service]
+                # Override getty@.service for tty1 to enable autologin
+                ExecStart=
+                ExecStart=-/sbin/agetty --autologin almalinux --noclear %I $TERM
+              permissions: '0644'
+            final_message: |
+              cloud-init has finished
+              version: $version
+              timestamp: $timestamp
+              datasource: $datasource
+              uptime: $uptime
+
+          meta_data: |
+            dsmode: local
+            local-hostname: "abm{{ index }}.lab.local"
+
+    - name: Disk desired configuration for "{{ vmname }}
+      scale_computing.hypercore.vm_disk:
+        vm_name: "{{ vmname }}"
+        items:
+          - disk_slot: 1
+            type: virtio_disk
+            type_new: scsi_disk
+            size: "{{1000 * 1000 * 1000 * 1000 }}"
+        state: present
+
+    - name: Vm nic desired configuration and state for "{{ vmname }}"
+      scale_computing.hypercore.vm_nic:
+        vm_name: "{{ vmname }}"
+        items:
+          - vlan: "{{ vlan }}"
+            mac_new: "{{ identifier }}"
+        state: set
+
+    - name: Vm desired configuration and state for "{{ vmname }}"
+      scale_computing.hypercore.vm_params:
+        vm_name: "{{ vmname }}"
+        memory: "{{ '32 GB' | human_to_bytes }}"
+        description:
+        tags:
+          - ovirt
+        vcpu: 16
+        power_state: start
