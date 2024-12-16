@@ -119,7 +119,7 @@
               - [ sh, -c, 'sudo update-grub' ]
             runcmd:
               - [ systemctl, restart, --no-block, qemu-guest-agent ]
-              - "curl --insecure -fL https://rancher.40.71.177.190.sslip.io/system-agent-install.sh | sudo  sh -s - --server https://rancher.40.71.177.190.sslip.io --label 'cattle.io/os=linux' --token 4hkjvbqc7dkt8f6pqxxwpvscgsmr4jbrlh4gx42hx2lhgd9c6pxmq8 --ca-checksum 201d953e9eaf37618c62fe24d8264b4a7a00b8172348f42b43ebad430867009e --etcd --controlplane --worker" 
+              - # rancher registration curl command here "curl --insecure -fL https://rancherip.sslip.io/system-agent-install.sh | sudo  sh -s - --server https://rancherip.sslip.io --label 'cattle.io/os=linux' --token xxxx --ca-checksum 201d953e9eaf37618c62fe24d8264b4a7a00b8172348f42b43ebad430867009e --etcd --controlplane --worker" 
               - [ systemctl, restart, --no-block, qemu-guest-agent ]
               - snap install kubectl --classic
             write_files:
