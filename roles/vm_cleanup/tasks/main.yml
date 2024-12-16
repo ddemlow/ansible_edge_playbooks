@@ -1,12 +1,88 @@
 ---
-# tasks file for vm_cleanup
+# tasks file for vm_cleanup and virtual disk media
   - name: Clean up old vms  # example of removing any old template or vm
     scale_computing.hypercore.vm:
       vm_name: "{{ item }}"
       state: absent
     loop:
-      - ubuntu20_0
+      - ubuntu20_04
       - oldvm
       - demo1
-      - "demo1-{{ site_name }}"
-      - demo2
+      - dockerdemo
+      - microk8s
+      - ubuntu-18.10-server-cloudimg-amd64.img
+#      - noble-server-cloudimg-amd64.img
+#      - "demo1-{{ site_name }}"
+    ignore_errors: true
+      
+  - name: Gather all VMs
+    scale_computing.hypercore.vm_info:
+      # Assuming the module returns information about all VMs; adjust if necessary
+    register: vm_info
+
+  # - name: debug
+  #   debug:
+  #     var: vm_info
+
+  - name: Filter VMs matching 'docker-*'
+    set_fact:
+      vms_to_delete: "{{ vm_info.records | selectattr('vm_name', 'match', '^docker-.*') | map(attribute='vm_name') | list }}"
+
+  - name: Clean up old VMs matching 'docker-*'
+    scale_computing.hypercore.vm:
+      vm_name: "{{ item }}"
+      state: absent
+    loop: "{{ vms_to_delete }}"
+    when: vms_to_delete | length > 0     
+
+  - name: Filter VMs matching 'microk8s-*'
+    set_fact:
+      vms_to_delete: "{{ vm_info.records | selectattr('vm_name', 'match', '^microk8s-.*') | map(attribute='vm_name') | list }}"
+
+  - name: Clean up old VMs matching 'microk8s-*'
+    scale_computing.hypercore.vm:
+      vm_name: "{{ item }}"
+      state: absent
+    loop: "{{ vms_to_delete }}"
+    when: vms_to_delete | length > 0       
+
+
+  - name: Get Information About the uploaded Virtual Disk in HyperCore
+    scale_computing.hypercore.virtual_disk_info:
+    register: diskmedia
+
+  # - name: output virtual disk media
+  #   debug:
+  #     msg: "{{ diskmedia }}"
+
+  - name: Collect disks starting with 'uploading-'
+    set_fact:
+      disks_to_delete: "{{ diskmedia.records | selectattr('name', 'match', '^uploading-.*') | map(attribute='name') | list }}"
+
+  # - name: Debug - Show disks to delete
+  #   debug:
+  #     msg: "{{ disks_to_delete }}"
+
+  - name: Delete uploading- virtual disks
+    scale_computing.hypercore.virtual_disk:
+      name: "{{ item }}"
+      state: absent
+    loop: "{{ disks_to_delete }}"
+    when: disks_to_delete is defined and disks_to_delete | length > 0
+    register: deleted
+
+  - name: Collect disks starting with 'converting-'
+    set_fact:
+      disks_to_delete: "{{ diskmedia.records | selectattr('name', 'match', '^converting-.*') | map(attribute='name') | list }}"
+
+  # - name: Debug - Show disks to delete
+  #   debug:
+  #     msg: "{{ disks_to_delete }}"
+
+  - name: Delete converting- virtual disks
+    scale_computing.hypercore.virtual_disk:
+      name: "{{ item }}"
+      state: absent
+    loop: "{{ disks_to_delete }}"
+    when: disks_to_delete is defined and disks_to_delete | length > 0
+    register: deleted    
