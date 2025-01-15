@@ -2,7 +2,7 @@
 - name: delete orphaned acronis vsds #edit vmname variable - use -l filter to specify cluster vs. full inventory
   hosts: edge
   vars:
-    - vmname: PM-SPLUNK
+    vmname: PM-SPLUNK
   connection: local
   gather_facts: false
   strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task

@@ -2,7 +2,7 @@
 - name: Simple vm deploy microk8s single node  #edit vmname variable - use -l filter to specify cluster vs. full inventory
   hosts: edge
   vars:
-    - vmname: microk8s-
+    vmname: microk8s-
   connection: local
   gather_facts: false
   strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task

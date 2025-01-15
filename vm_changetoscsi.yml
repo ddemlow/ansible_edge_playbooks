@@ -2,7 +2,7 @@
 - name: change disk to virtio scsi  
   hosts: all
   vars:
-    - vmname: "uefi-shell-test"
+    vmname: "uefi-shell-test"
   connection: local
   gather_facts: false
   strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task

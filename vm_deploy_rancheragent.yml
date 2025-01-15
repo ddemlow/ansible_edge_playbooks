@@ -2,13 +2,13 @@
 - name: Simple vm deploy docker single node  # edit vmname variable - use -l filter to specify cluster vs. full inventory
   hosts: all
   vars:
-    - vmname: rke-
-    - image_url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img #"https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
-    - image_path: "/Users/davedemlow/tmp/" # ~/tmp/" #path to download file
-    - url2template_image_url: "{{ image_url }}"
-    - url2template_machine_type: vTPM+UEFI
-    - url2template_operating_system: os_other
-    - url2template_vm_name: "{{ vm_name | default(image_url | split('/') | last) }}"
+    vmname: rke-
+    image_url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img #"https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+    image_path: "/Users/davedemlow/tmp/" # ~/tmp/" #path to download file
+    url2template_image_url: "{{ image_url }}"
+    url2template_machine_type: vTPM+UEFI
+    url2template_operating_system: os_other
+    url2template_vm_name: "{{ vm_name | default(image_url | split('/') | last) }}"
   connection: local
   gather_facts: false
   strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task

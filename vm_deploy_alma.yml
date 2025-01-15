@@ -2,20 +2,20 @@
 - name: Simple vm deploy alma linux 
   hosts: all
   vars:
-    - vmname: "abm{{ index }}"
-    - image_url: https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-9.5-20241120.x86_64.qcow2 #https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-9.4-20240507.x86_64.qcow2
-    - image_path: "/Users/davedemlow/tmp/" # ~/tmp/" #path to download file
-    - url2template_image_url: "{{ image_url }}"
-    - url2template_machine_type: vTPM+UEFI
-    - url2template_operating_system: os_other
-    - url2template_vm_name: "{{ vm_name | default(image_url | split('/') | last) }}"
-    - index: "40"
-    - vlan: "164"
-    - identifier: "7c:4c:dd:00:00:{{ index }}"
-    - lanip: "10.6.42.{{index}}"
-    - backplaneip: "192.6.42.{{ index }}"
-    - lanNetmask: 255.255.252.0
-    - lanGateway: 10.6.43.254
+    vmname: "abm{{ index }}"
+    image_url: https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-9.5-20241120.x86_64.qcow2 #https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-9.4-20240507.x86_64.qcow2
+    image_path: "/Users/davedemlow/tmp/" # ~/tmp/" #path to download file
+    url2template_image_url: "{{ image_url }}"
+    url2template_machine_type: vTPM+UEFI
+    url2template_operating_system: os_other
+    url2template_vm_name: "{{ vm_name | default(image_url | split('/') | last) }}"
+    index: "40"
+    vlan: "164"
+    identifier: "7c:4c:dd:00:00:{{ index }}"
+    lanip: "10.6.42.{{index}}"
+    backplaneip: "192.6.42.{{ index }}"
+    lanNetmask: 255.255.252.0
+    lanGateway: 10.6.43.254
   connection: local
   gather_facts: false
   strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task

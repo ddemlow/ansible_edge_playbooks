@@ -2,10 +2,10 @@
 - name: Simple vm deploy docker single node  #edit vmname variable - use -l filter to specify cluster vs. full inventory
   hosts: edge
   vars:
-    - vmname: docker-  #random 5 characters will be appended
-    - image_url:
+    vmname: docker-  #random 5 characters will be appended
+    image_url:
       - "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
-    - image_path: "/Users/davedemlow/tmp/" #~/tmp/" #path to download file
+    image_path: "/Users/davedemlow/tmp/" #~/tmp/" #path to download file
   connection: local
   gather_facts: false
   strategy: host_pinned # free  #allows each cluster to start next task before all clusters have finished current task
