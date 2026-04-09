@@ -1,0 +1,662 @@
+---
+# =============================================================================
+# Lab Demo: cloud-init vs Ansible — two ways to configure a VM
+#
+# STORY:
+#   Part 1 — cloud-init: VM boots, cloud-init installs Docker and launches
+#             nginx:1.25. Ansible only talks to HyperCore — no SSH to the VM.
+#             Result: nginx:1.25 running, visible in a browser.
+#
+#   Part 2 — Ansible: Ansible SSHes into the running VM and:
+#             - updates nginx 1.25 → 1.27
+#             - deploys a second container (nginxdemos/hello) on port 8081
+#             This is day-2 management — cloud-init already did first-boot.
+#
+# USAGE:
+#   Simple (single cluster — trailing comma = inline inventory, no file needed):
+#     ansible-playbook -i "10.6.42.24," demo_vm_deploy_and_update_container.yml
+#
+#   Group (multiple clusters from inventory):
+#     ansible-playbook -i inventory/cluster_inventory.yml -l vsns \
+#       demo_vm_deploy_and_update_container.yml
+#
+# KEY VARS (override with -e):
+#   vmname=demo-docker      VM name — must be unique per cluster
+#   vm_password=Scale2025!  ubuntu user password for SSH / console
+#   nginx_initial_tag=1.25  nginx version cloud-init will deploy
+#   nginx_new_tag=1.27      nginx version Ansible will update to
+#
+# IDEMPOTENCY — safe to Ctrl-C and re-run:
+#   Template VM: skipped if already exists (url2template role)
+#   VM clone:    skipped if VM already exists (vm_info check + when)
+#   Re-running skips straight to the IP poll and pause.
+# =============================================================================
+
+
+# =============================================================================
+# PHASE 1 — HyperCore API (connection: local) + cloud-init
+# =============================================================================
+- name: "PART 1: Deploy VM — cloud-init installs Docker and starts nginx"
+  hosts: "{{ target_host | default('all') }}"
+  connection: local
+  gather_facts: false
+  strategy: linear
+
+  pre_tasks:
+    - name: Skip Phase 1 (cleanup_only=true)
+      ansible.builtin.meta: end_play
+      when: cleanup_only | default(false) | bool
+
+    # Generate a throwaway keypair so Phase 2 can SSH into the VM without
+    # requiring sshpass or pre-existing keys (GitHub, ssh-agent, etc).
+    # Works from any client that has ssh-keygen (standard on Linux/Mac).
+    - name: Generate throwaway SSH keypair for VM access
+      ansible.builtin.command:
+        cmd: "ssh-keygen -t ed25519 -f /tmp/demo_vm_key_{{ vmname }} -N '' -C 'demo-ansible' -q"
+        creates: "/tmp/demo_vm_key_{{ vmname }}"
+      run_once: true
+      delegate_to: localhost
+
+    - name: Read generated public key
+      ansible.builtin.slurp:
+        src: "/tmp/demo_vm_key_{{ vmname }}.pub"
+      register: demo_pubkey_raw
+      run_once: true
+      delegate_to: localhost
+
+    - name: Set demo_pubkey fact
+      ansible.builtin.set_fact:
+        demo_pubkey: "{{ demo_pubkey_raw.content | b64decode | trim }}"
+      run_once: true
+      delegate_to: localhost
+
+    - name: Check HyperCore API is reachable on {{ inventory_hostname }}
+      ansible.builtin.uri:
+        url: "https://{{ inventory_hostname }}/rest/v1/Cluster"
+        validate_certs: false
+        url_username: "{{ scale_user | default(lookup('env', 'SC_USERNAME') | default('scale')) }}"
+        url_password: "{{ scale_pass | default(lookup('env', 'SC_PASSWORD') | default('SC@l3')) }}"
+        timeout: 10
+        status_code: 200
+      register: cluster_reachable
+      ignore_errors: true
+
+    - name: Skip offline cluster {{ inventory_hostname }}
+      ansible.builtin.meta: end_host
+      when: cluster_reachable is failed
+
+  environment:
+    SC_HOST: "{{ 'https://' + inventory_hostname if inventory_hostname != 'localhost' else lookup('env', 'SC_HOST') }}"
+    SC_USERNAME: "{{ scale_user | default(lookup('env', 'SC_USERNAME') | default('scale')) }}"
+    SC_PASSWORD: "{{ scale_pass | default(lookup('env', 'SC_PASSWORD') | default('SC@l3')) }}"
+
+  vars:
+    vmname: "demo-docker"
+    image_url: "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
+    nginx_initial_tag: "1.25"
+    nginx_new_tag: "1.27"
+    container_name: demo-nginx
+    container_port: 80
+    hello_container_name: demo-hello
+    hello_container_port: 8081
+    vm_password: "SC@l3"
+    vm_user: "scale"
+    # SSH access to the deployed VM.
+    # Option 1 — import your key from GitHub (recommended, change to your username):
+    #   ssh_import_github: gh:your-github-username
+    # Option 2 — paste your public key directly:
+    #   ssh_import_key: "ssh-ed25519 AAAA... you@host"
+    # Option 3 — leave both empty to use password-only access
+    # Ansible (Part 2) connects using the key from your local ssh-agent regardless.
+    ssh_import_github: ""   # optional: GitHub username to import keys (gh:username)
+    ssh_import_key: ""    # optional: paste a public key directly
+
+    # Image source — set use_preloaded_image=true when cloudimg.img is already on the cluster
+    # (skips download + upload; creates template from the existing virtual disk instead)
+    use_preloaded_image: true
+    preloaded_image_name: "cloudimg.img"      # name of the virtual disk already on the cluster
+    preloaded_template_name: "cloudimg"       # template VM to create from it
+
+    # url2template role vars (used when use_preloaded_image: false)
+    url2template_image_url: "{{ image_url }}"
+    url2template_vm_name: "{{ image_url | split('/') | last }}"
+    url2template_machine_type: BIOS
+    url2template_operating_system: os_other
+
+    # cloud-init user-data defined here as a clean variable — not inline in the task.
+    # This makes it easy to read, edit, and avoids YAML-inside-YAML pitfalls.
+    #
+    # Ubuntu 24.04 cloud-init notes:
+    #   - users: must start with `- default` to preserve the ubuntu user
+    #   - Jinja2 {% if %} blocks MUST NOT appear inside the users: list items —
+    #     they leave whitespace-only lines that corrupt YAML parsing silently
+    #   - chpasswd list: is the reliable way to set passwords for multiple users
+    #   - ssh_import_id / ssh_authorized_keys at top level apply to the default user;
+    #     for the scale user, ssh keys are set via authorized_keys in runcmd
+    #   - docker group membership via runcmd (group doesn't exist until docker installs)
+    cloud_init_user_data: |
+      #cloud-config
+      hostname: "{{ vmname }}"
+      ssh_pwauth: true
+
+      users:
+        - default
+        - name: "{{ vm_user }}"
+          sudo: ALL=(ALL) NOPASSWD:ALL
+          shell: /bin/bash
+          lock_passwd: false
+
+      # chpasswd.users format required in cloud-init 23+ (Ubuntu 24.04);
+      # type: text means plain-text password (cloud-init hashes it internally)
+      chpasswd:
+        expire: false
+        users:
+          - name: ubuntu
+            password: "{{ vm_password }}"
+            type: text
+          - name: "{{ vm_user }}"
+            password: "{{ vm_password }}"
+            type: text
+
+      # Throwaway key generated at play start — injected for both users via runcmd
+      # Optional extras (GitHub import or manually supplied key)
+      {% if ssh_import_github != "" %}
+      ssh_import_id:
+        - {{ ssh_import_github }}
+      {% endif %}
+      {% if ssh_import_key != "" %}
+      ssh_authorized_keys:
+        - {{ ssh_import_key }}
+      {% endif %}
+
+      packages:
+        - qemu-guest-agent
+        - docker.io
+        - docker-compose
+        - python3-docker
+      package_update: true
+
+      runcmd:
+        # Grow root partition/filesystem in case cloud-initramfs-growroot didn't run
+        - growpart /dev/sda 1 || true
+        - resize2fs /dev/sda1 || true
+        - systemctl enable --now docker
+        - systemctl enable --now qemu-guest-agent
+        - usermod -aG docker ubuntu
+        - "usermod -aG docker {{ vm_user }}"
+        - "echo 'PasswordAuthentication yes' > /etc/ssh/sshd_config.d/99-password-auth.conf"
+        - systemctl reload ssh
+        # Inject throwaway public key for scale user (generated at play start)
+        - "mkdir -p /home/{{ vm_user }}/.ssh && chmod 700 /home/{{ vm_user }}/.ssh"
+        - "echo '{{ demo_pubkey }}' >> /home/{{ vm_user }}/.ssh/authorized_keys"
+        - "chmod 600 /home/{{ vm_user }}/.ssh/authorized_keys"
+        - "chown -R {{ vm_user }}:{{ vm_user }} /home/{{ vm_user }}/.ssh"
+        - "docker run -d --name {{ container_name }} --restart unless-stopped -p {{ container_port }}:80 nginx:{{ nginx_initial_tag }}"
+        - "echo 'cloud-init complete: nginx:{{ nginx_initial_tag }} on :{{ container_port }}' | wall"
+
+      final_message: "cloud-init finished — uptime $UPTIME seconds"
+
+    cloud_init_meta_data: |
+      dsmode: local
+      local-hostname: "{{ vmname }}"
+
+    # template2vm role vars
+    template2vm_source_vm_name: "{{ preloaded_template_name if (use_preloaded_image | default(false) | bool) else url2template_vm_name }}"
+    template2vm_vm_name: "{{ vmname }}"
+    template2vm_description: "demo — cloud-init: nginx:{{ nginx_initial_tag }} | ansible will update + add hello"
+    template2vm_vm_tags:
+      - demo
+      - docker
+      - ansible_group__demo_docker
+      - ansible_user__scale
+    template2vm_vcpu: 2
+    template2vm_memory: "{{ '2 GB' | human_to_bytes }}"
+    template2vm_disk_size: "{{ '40 GB' | human_to_bytes }}"
+    template2vm_power_state: start
+    template2vm_user_data: "{{ cloud_init_user_data }}"
+    template2vm_meta_data: "{{ cloud_init_meta_data }}"
+    template2vm_nics:
+      - type: virtio
+        vlan: 0
+
+  tasks:
+
+    # -------------------------------------------------------------------------
+    # Template VM — two paths controlled by use_preloaded_image:
+    #   false (default): url2template role downloads + uploads + creates template
+    #   true:            cloudimg.img already on cluster; just create template VM
+    # -------------------------------------------------------------------------
+    - name: Create template VM via download (skipped if already exists or use_preloaded_image=true)
+      when: not (use_preloaded_image | default(false) | bool)
+      ansible.builtin.include_role:
+        name: scale_computing.hypercore.url2template
+
+    - name: Check if preloaded template VM "{{ preloaded_template_name }}" exists
+      when: use_preloaded_image | default(false) | bool
+      scale_computing.hypercore.vm_info:
+        vm_name: "{{ preloaded_template_name }}"
+      register: preloaded_template_info
+
+    - name: Create template VM from pre-loaded "{{ preloaded_image_name }}" (skipped if exists)
+      when:
+        - use_preloaded_image | default(false) | bool
+        - (preloaded_template_info.records | default([])) | length == 0
+      block:
+        - name: Create template VM shell
+          scale_computing.hypercore.vm:
+            vm_name: "{{ preloaded_template_name }}"
+            description: "Template from pre-loaded {{ preloaded_image_name }}"
+            state: present
+            tags:
+              - template
+            memory: "{{ '1 GB' | human_to_bytes }}"
+            vcpu: 0
+            power_state: stop
+            disks: []
+            nics:
+              - vlan: 0
+                type: virtio
+            operating_system: os_other
+            machine_type: BIOS
+
+        - name: Attach {{ preloaded_image_name }} to template VM
+          scale_computing.hypercore.virtual_disk_attach:
+            name: "{{ preloaded_image_name }}"
+            vm_name: "{{ preloaded_template_name }}"
+            disk:
+              type: virtio_disk
+              disk_slot: 1
+
+        - name: Set boot device on template VM
+          scale_computing.hypercore.vm_boot_devices:
+            vm_name: "{{ preloaded_template_name }}"
+            items:
+              - type: virtio_disk
+                disk_slot: 1
+            state: present
+
+    # -------------------------------------------------------------------------
+    - name: Check if VM "{{ vmname }}" already exists
+      scale_computing.hypercore.vm_info:
+        vm_name: "{{ vmname }}"
+      register: vm_info_result
+
+    # If VM exists but is not running, ask the user what to do.
+    - name: "VM '{{ vmname }}' exists but is {{ vm_info_result.records[0].power_state | default('unknown') }} — what do you want to do?"
+      when:
+        - vm_info_result.records | length > 0
+        - vm_info_result.records[0].power_state != "started"
+      ansible.builtin.pause:
+        prompt: |2+
+
+          ============================================================
+           VM "{{ vmname }}" exists but is not running.
+           power_state: {{ vm_info_result.records[0].power_state }}
+          ============================================================
+
+           [d] Delete and re-clone  — fresh VM, cloud-init runs again
+           [p] Power on as-is       — resume from where it was left off
+           [r] Rename existing + create fresh — keeps old VM, new name
+
+          Enter choice (d/p/r):
+      register: vm_action
+
+    - name: Ask for new VM name (rename path)
+      when:
+        - vm_info_result.records | length > 0
+        - vm_info_result.records[0].power_state != "started"
+        - vm_action.user_input | lower == 'r'
+      ansible.builtin.pause:
+        prompt: "Enter new name for the existing VM (e.g. demo-docker-old):"
+      register: vm_rename_input
+
+    - name: Rename existing VM to make room for fresh clone
+      when:
+        - vm_info_result.records | length > 0
+        - vm_info_result.records[0].power_state != "started"
+        - vm_action.user_input | lower == 'r'
+      scale_computing.hypercore.vm_params:
+        vm_name: "{{ vmname }}"
+        vm_name_new: "{{ vm_rename_input.user_input | trim }}"
+
+    - name: Delete "{{ vmname }}" for fresh re-clone
+      when:
+        - vm_info_result.records | length > 0
+        - vm_info_result.records[0].power_state != "started"
+        - vm_action.user_input | lower == 'd'
+      scale_computing.hypercore.vm:
+        vm_name: "{{ vmname }}"
+        state: absent
+
+    - name: Power on existing "{{ vmname }}"
+      when:
+        - vm_info_result.records | length > 0
+        - vm_info_result.records[0].power_state != "started"
+        - vm_action.user_input | lower == 'p'
+      scale_computing.hypercore.vm_params:
+        vm_name: "{{ vmname }}"
+        power_state: start
+
+    - name: Refresh VM info after user action
+      when: vm_info_result.records | length > 0 and vm_info_result.records[0].power_state != "started"
+      scale_computing.hypercore.vm_info:
+        vm_name: "{{ vmname }}"
+      register: vm_info_refresh
+
+    # template2vm role: clones template, resizes disk, sets NICs, sets params, starts VM.
+    # Wrapped in include_role so we can conditionally skip if VM already running.
+    # Clone if: VM never existed, OR user chose delete (d) or rename (r).
+    - name: Clone and configure VM "{{ vmname }}" from template (skipped if already running)
+      when: >
+        (vm_info_result.records | length == 0) or
+        (vm_action is defined and not (vm_action.skipped | default(false)) and
+         vm_action.user_input | lower in ['d', 'r'])
+      ansible.builtin.include_role:
+        name: scale_computing.hypercore.template2vm
+
+    # Poll HyperCore until qemu-guest-agent reports DHCP IP.
+    # The guest agent only starts after cloud-init's runcmd finishes — so
+    # getting an IP means Docker is running and the container has been launched.
+    #
+    # Wrapped in block/rescue so that if cloud-init fails (e.g. DNS flake preventing
+    # package install) the attendee gets clear troubleshooting steps instead of a
+    # cryptic Ansible timeout error.
+    - name: Wait for VM to become ready and verify nginx
+      block:
+        - name: Wait for qemu-guest-agent to report VM IP (cloud-init + docker install takes ~3 min)
+          scale_computing.hypercore.vm_info:
+            vm_name: "{{ vmname }}"
+          register: vm_info
+          until: >
+            vm_info.records | length > 0 and
+            vm_info.records[0].nics | length > 0 and
+            vm_info.records[0].nics[0].ipv4_addresses | length > 0
+          retries: 40
+          delay: 15
+
+        - name: Set vm_ip fact
+          ansible.builtin.set_fact:
+            vm_ip: "{{ vm_info.records[0].nics[0].ipv4_addresses[0] }}"
+
+        # Wait for nginx port — confirms cloud-init runcmd completed successfully
+        - name: Wait for nginx on port {{ container_port }} to be reachable at {{ vm_ip }}
+          ansible.builtin.wait_for:
+            host: "{{ vm_ip }}"
+            port: "{{ container_port }}"
+            state: started
+            timeout: 300
+            delay: 5
+
+        - name: Confirm nginx returns HTTP 200
+          ansible.builtin.uri:
+            url: "http://{{ vm_ip }}:{{ container_port }}"
+            return_content: false
+            status_code: 200
+          register: nginx_check
+
+      rescue:
+        - name: "*** CLOUD-INIT FAILED — troubleshooting steps ***"
+          ansible.builtin.debug:
+            msg:
+              - "================================================================"
+              - "  cloud-init did not finish on {{ inventory_hostname }}"
+              - ""
+              - "  Most likely cause: a DNS/network hiccup at first boot prevented"
+              - "  apt from installing packages (qemu-guest-agent, docker.io, etc)."
+              - "  The VM is broken and cannot be repaired — it must be deleted and"
+              - "  recreated so cloud-init runs again with working network access."
+              - ""
+              - "  HOW TO RECOVER:"
+              - ""
+              - "  Step 1 — Delete the broken VM (pick one):"
+              - "    a) HyperCore UI: Virtual Machines → {{ vmname }} → Delete"
+              - "    b) Re-run with cleanup flag:"
+              - "         ansible-playbook -i \"{{ inventory_hostname }},\" \\"
+              - "           demo_vm_deploy_and_update_container.yml -e cleanup_vms=true"
+              - ""
+              - "  Step 2 — Re-run the playbook to create a fresh VM:"
+              - "    ansible-playbook -i \"{{ inventory_hostname }},\" \\"
+              - "      demo_vm_deploy_and_update_container.yml"
+              - ""
+              - "  If it fails a second time, ask a lab instructor — the cluster"
+              - "  may have a network/DNS issue that needs to be resolved first."
+              - ""
+              - "  To diagnose: open VM console in HyperCore UI and run:"
+              - "    sudo cat /var/log/cloud-init-output.log"
+              - "================================================================"
+
+        - name: Abort play for this host after cloud-init failure
+          ansible.builtin.meta: end_host
+
+    - name: "*** PART 1 COMPLETE — cloud-init deployed the VM and launched nginx ***"
+      ansible.builtin.debug:
+        msg:
+          - "================================================================"
+          - "  cloud-init did this entirely on its own at first boot:"
+          - "    1. Installed docker.io, qemu-guest-agent, python3-docker"
+          - "    2. Enabled Docker"
+          - "    3. Ran: docker run -d nginx:{{ nginx_initial_tag }} -p {{ container_port }}:80"
+          - ""
+          - "  VM Name  : {{ vmname }}"
+          - "  VM IP    : {{ vm_ip }}"
+          - "  Image    : nginx:{{ nginx_initial_tag }}"
+          - "  HTTP     : {{ nginx_check.status }} OK"
+          - "  Browser  : http://{{ vm_ip }}:{{ container_port }}"
+          - "================================================================"
+
+    - name: "PAUSE — explore the VM, then press Enter to run Part 2"
+      when: not (skip_pause | default(false) | bool)
+      ansible.builtin.pause:
+        prompt: |2+
+
+          ============================================================
+           PART 1 COMPLETE  —  cloud-init did all the work
+          ============================================================
+
+           Browser (nginx Welcome page):
+             http://{{ vm_ip }}:{{ container_port }}
+
+           SSH into the VM (open a second terminal):
+             ssh scale@{{ vm_ip }}
+             password: {{ vm_password }}
+
+           Explore on the VM:
+             sudo docker ps
+             sudo docker images
+             sudo docker inspect {{ container_name }}
+             curl http://localhost:{{ container_port }}
+
+           See what cloud-init did:
+             cat /var/log/cloud-init-output.log
+             sudo cloud-init status --long
+             sudo cat /var/lib/cloud/instance/user-data.txt
+
+           CTRL-C to keep exploring — re-run the same command to
+           resume. Phase 1 is idempotent and will pause here again.
+
+          ============================================================
+           Press Enter for Part 2: Ansible SSHes in and updates
+           nginx {{ nginx_initial_tag }} -> {{ nginx_new_tag }}, then deploys a second container
+          ============================================================
+
+
+
+# =============================================================================
+# PHASE 2 — Ansible SSHes into VM (day-2 management)
+# =============================================================================
+- name: "PART 2: Ansible SSHes into VM — update container and deploy a second one"
+  hosts: "{{ target_host | default('all') }}"
+  gather_facts: false
+  become: true
+
+  # Phase 2 targets the cluster hosts (static inventory — always resolvable).
+  # For each cluster, we redirect the SSH connection to the deployed VM by
+  # overriding ansible_host with vm_ip set by Phase 1.
+  # Clusters where Phase 1 was skipped (offline/cleanup_only) have no vm_ip — skipped automatically.
+
+  vars:
+    vmname: "demo-docker"
+    demo_container_name: "{{ container_name | default('demo-nginx') }}"
+    demo_container_port: "{{ container_port | default(80) }}"
+    demo_nginx_initial_tag: "{{ nginx_initial_tag | default('1.25') }}"
+    demo_nginx_new_tag: "{{ nginx_new_tag | default('1.27') }}"
+    demo_hello_container_name: "{{ hello_container_name | default('demo-hello') }}"
+    demo_hello_container_port: "{{ hello_container_port | default(8081) }}"
+
+  tasks:
+    - name: Skip cluster if Phase 1 did not deploy a VM (offline, skipped, or cleanup_only)
+      ansible.builtin.meta: end_host
+      when: hostvars[inventory_hostname]['vm_ip'] is not defined
+
+    - name: Redirect SSH connection to VM at {{ hostvars[inventory_hostname]['vm_ip'] }}
+      ansible.builtin.set_fact:
+        ansible_host: "{{ hostvars[inventory_hostname]['vm_ip'] }}"
+        ansible_user: scale
+        ansible_ssh_private_key_file: "/tmp/demo_vm_key_{{ vmname }}"
+        ansible_python_interpreter: /usr/bin/python3
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes"
+
+    - name: Gather facts from VM
+      ansible.builtin.setup:
+
+    # -------------------------------------------------------------------------
+    # Show current state — what cloud-init left us with
+    # -------------------------------------------------------------------------
+    - name: Check state of nginx container (as deployed by cloud-init)
+      community.docker.docker_container_info:
+        name: "{{ demo_container_name }}"
+      register: before_container
+
+    - name: Show current container state
+      ansible.builtin.debug:
+        msg:
+          - "Container : {{ demo_container_name }}"
+          - "Image     : {{ before_container.container.Config.Image }}"
+          - "Status    : {{ before_container.container.State.Status }}"
+
+    # -------------------------------------------------------------------------
+    # Update the nginx container to a new version
+    # -------------------------------------------------------------------------
+    - name: Pull updated nginx image nginx:{{ demo_nginx_new_tag }}
+      community.docker.docker_image:
+        name: "nginx:{{ demo_nginx_new_tag }}"
+        source: pull
+
+    - name: Update {{ demo_container_name }} — nginx:{{ demo_nginx_initial_tag }} → nginx:{{ demo_nginx_new_tag }}
+      community.docker.docker_container:
+        name: "{{ demo_container_name }}"
+        image: "nginx:{{ demo_nginx_new_tag }}"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "{{ demo_container_port }}:80"
+
+    - name: Confirm nginx:{{ demo_nginx_new_tag }} returns HTTP 200
+      ansible.builtin.uri:
+        url: "http://localhost:{{ demo_container_port }}"
+        status_code: 200
+      register: nginx_updated_check
+
+    - name: Confirm updated image
+      community.docker.docker_container_info:
+        name: "{{ demo_container_name }}"
+      register: after_container
+
+    - name: Show nginx update result
+      ansible.builtin.debug:
+        msg:
+          - "nginx updated!"
+          - "  Before : {{ before_container.container.Config.Image }}"
+          - "  After  : {{ after_container.container.Config.Image }}"
+          - "  HTTP   : {{ nginx_updated_check.status }} OK"
+
+    # -------------------------------------------------------------------------
+    # Deploy a second container — something cloud-init never set up
+    # nginxdemos/hello shows server hostname, IP, request info — visually
+    # distinct from the plain nginx welcome page
+    # -------------------------------------------------------------------------
+    - name: Deploy second container — nginxdemos/hello on port {{ demo_hello_container_port }}
+      community.docker.docker_container:
+        name: "{{ demo_hello_container_name }}"
+        image: "nginxdemos/hello:latest"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "{{ demo_hello_container_port }}:80"
+
+    - name: Wait for hello container HTTP
+      ansible.builtin.uri:
+        url: "http://localhost:{{ demo_hello_container_port }}"
+        status_code: 200
+      register: hello_check
+      retries: 6
+      delay: 5
+      until: hello_check.status == 200
+
+    - name: Show all running containers
+      ansible.builtin.command: docker ps --format "table {% raw %}{{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}{% endraw %}"
+      register: docker_ps
+      changed_when: false
+
+    - name: Running containers
+      ansible.builtin.debug:
+        msg: "{{ docker_ps.stdout_lines }}"
+
+    - name: "*** PART 2 COMPLETE — Ansible updated and extended the running VM ***"
+      ansible.builtin.debug:
+        msg:
+          - "================================================================"
+          - "  Ansible SSH'd in and made two changes to the running VM:"
+          - ""
+          - "  1. Updated existing container (was deployed by cloud-init):"
+          - "       {{ before_container.container.Config.Image }}"
+          - "       → {{ after_container.container.Config.Image }}"
+          - "       http://{{ inventory_hostname }}:{{ demo_container_port }}"
+          - ""
+          - "  2. Deployed NEW container (Ansible only — not in cloud-init):"
+          - "       nginxdemos/hello — shows live request/server info"
+          - "       http://{{ inventory_hostname }}:{{ demo_hello_container_port }}"
+          - ""
+          - "  cloud-init = first-boot config  (runs once, no Ansible SSH)"
+          - "  Ansible    = day-2 management   (runs anytime, full SSH access)"
+          - "================================================================"
+
+
+# =============================================================================
+# PHASE 3 — Cleanup (optional, off by default)
+#   ansible-playbook ... -e cleanup_vms=true
+# =============================================================================
+- name: "PART 3: Cleanup — delete demo VMs (cleanup_vms=true to enable)"
+  hosts: "{{ target_host | default('all') }}"
+  connection: local
+  gather_facts: false
+
+  environment:
+    SC_HOST: "{{ 'https://' + inventory_hostname if inventory_hostname != 'localhost' else lookup('env', 'SC_HOST') }}"
+    SC_USERNAME: "{{ scale_user | default(lookup('env', 'SC_USERNAME') | default('scale')) }}"
+    SC_PASSWORD: "{{ scale_pass | default(lookup('env', 'SC_PASSWORD') | default('SC@l3')) }}"
+  vars:
+    vmname: "demo-docker"
+
+  tasks:
+    - name: Reset Python interpreter (undo Phase 2 SSH redirect set_fact)
+      ansible.builtin.set_fact:
+        ansible_python_interpreter: "{{ ansible_playbook_python }}"
+
+    - name: Skip cleanup (neither cleanup_vms nor cleanup_only set)
+      ansible.builtin.meta: end_host
+      when:
+        - not (cleanup_vms | default(false) | bool)
+        - not (cleanup_only | default(false) | bool)
+
+    - name: Skip cluster if VM not in demo_docker group (and not cleanup_only or explicit cleanup_vms)
+      ansible.builtin.meta: end_host
+      when:
+        - not (cleanup_only | default(false) | bool)
+        - not (cleanup_vms | default(false) | bool)
+        - (inventory_hostname + '_demo_docker') not in (groups['demo_docker'] | default([]))
+
+    - name: Delete "{{ vmname }}" on {{ inventory_hostname }}
+      scale_computing.hypercore.vm:
+        vm_name: "{{ vmname }}"
+        state: absent
