@@ -13,7 +13,10 @@
   roles:
     - vm_cleanup # cleans up list of formerly used VMs
     - iso_cleanup #removes isos defined in role
-    - cleanupimages
+    # NOTE: cleanupimages role is not present in this repository. Leaving it
+    # enabled causes the playbook to fail at role resolution time.
+    # If you intended an image cleanup step, add the role or replace this entry.
+    # - cleanupimages
     - hypercore_version # checks and corrects hypercore version vs. desired
     - check-ide # check for vms with ide disks
 

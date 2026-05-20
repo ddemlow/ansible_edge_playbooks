@@ -1,0 +1,22 @@
+---
+# Defaults for the POS demo VM role.
+#
+# IMPORTANT: Do not hardcode secrets into this repository. If you want to enable
+# Azure Arc onboarding from cloud-init, pass these via Ansible Vault, extra-vars,
+# or environment-specific vars files that are not committed.
+
+# Whether to install Azure CLI and connect the cluster to Azure Arc.
+pos_enable_azure_arc: false
+
+# Azure Arc settings (required when pos_enable_azure_arc=true).
+pos_azure_service_principal_id: ""
+pos_azure_service_principal_secret: ""
+pos_azure_tenant_id: ""
+pos_azure_resource_group: "AzureArcTest"
+
+# ConnectedK8s extension name (override if needed).
+pos_azure_connectedk8s_extension: "connectedk8s"
+
+# Optional: location/region (used by some az commands; keep empty to require explicit setting)
+pos_azure_location: ""
+
